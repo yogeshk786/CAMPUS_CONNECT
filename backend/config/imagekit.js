@@ -1,7 +1,7 @@
 const ImageKit = require("imagekit");
 require('dotenv').config();
 
-// Initialize ImageKit with your environment variables
+// Initialize ImageKit with  environment variables
 const imagekit = new ImageKit({
     publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
     privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
