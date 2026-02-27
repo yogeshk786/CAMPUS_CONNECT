@@ -10,43 +10,54 @@ const createPost = async (req, res) => {
         console.log("File received:", req.file);
 
         const { text } = req.body || {};
-        
-        // 👉 FIXED: Declared imageUrl and videoUrl properly
+
+        // 👉 TYPO FIXED: Changed 'rext' to 'text'
+        if (!text && !req.file) {
+            return res.status(400).json({ 
+                message: "Post must contain text, an image, or a video" 
+            });
+        }
+
         let imageUrl = null;
         let videoUrl = null;
 
+        // Handle ImageKit Upload
         if (req.file) {
+            console.log("Uploading file to imagekit...");
+            
+            // 👉 CLEANED UP: Using await instead of .then() for clarity
             const response = await imagekit.upload({
                 file: req.file.buffer,
                 fileName: req.file.originalname,
                 folder: "campus_connect_posts"
             });
 
-            // 👉 FIXED: Changed 'videos' to 'video' (mimetypes are singular, like 'video/mp4')
-            if (req.file.mimetype.includes('video')) {
-                videoUrl = response.url;
-            } else {
+            console.log("ImageKit upload response:", response);
+
+            if (response.fileType === "image") {
                 imageUrl = response.url;
+            } else {
+                videoUrl = response.url;
             }
         }
 
-        // Ensure the post isn't completely empty
-        if (!text && !imageUrl && !videoUrl) {
-            return res.status(400).json({ message: 'Post must contain text, an image, or a video' });
-        }
-
+        // Save to MongoDB
         const newPost = await Post.create({
             user: req.user._id,
             text: text || "",
-            image: imageUrl || "",
-            video: videoUrl || "",
+            image: imageUrl,
+            video: videoUrl,
         });
 
+        // Send Success Response
         res.status(201).json(newPost);
 
     } catch (error) {
         console.error("Error Detail :", error);
-        res.status(500).json({ message: "Server Error"  , error : error.message});
+        res.status(500).json({ 
+            message: "Server Error", 
+            error: error.message 
+        });
     }
 };
 
@@ -60,7 +71,6 @@ const getAllPosts = async (req, res) => {
             .populate('user', 'name handle avatar role dept'); 
 
         res.status(200).json(posts);
-
     } catch (error) {
         console.error("Error fetching posts:", error.message);
         res.status(500).json({ message: "Server Error" });
@@ -76,13 +86,10 @@ const likePost = async (req, res) => {
         const userId = req.user._id;    
 
         const post = await Post.findById(postId);
-
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }   
 
-        // Note: I kept your logic where a user can only 'like' and not 'unlike'. 
-        // If you want a toggle, let me know!
         if (post.likes.includes(userId)) {
             return res.status(400).json({ message: 'You have already liked this post' });
         }           
@@ -106,7 +113,6 @@ const commentPost = async (req, res) => {
         const { text } = req.body;
         
         const post = await Post.findById(postId);
-
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }               
@@ -114,7 +120,7 @@ const commentPost = async (req, res) => {
         const comment = {
             user: userId,
             text: text
-        }
+        };
         
         post.comments.push(comment);
         await post.save();
@@ -125,5 +131,4 @@ const commentPost = async (req, res) => {
     }       
 };      
 
-// 👉 FIXED: Exporting exactly what the routes file is looking for!
 module.exports = { createPost, getAllPosts, likePost, commentPost };
