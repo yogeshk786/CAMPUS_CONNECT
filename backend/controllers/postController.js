@@ -4,7 +4,6 @@ const Post = require("../models/Post");
 // ==========================================
 // CREATE A NEW POST (WITH MEDIA)
 // ==========================================
-// 👉 FIXED: Added 'async' back to the function
 const createPost = async (req, res) => {
   try {
     console.log("Body received:", req.body);
@@ -39,12 +38,15 @@ const createPost = async (req, res) => {
     }
 
     // Save to MongoDB
-    const newPost = await Post.create({
+    let newPost = await Post.create({
       user: req.user._id,
       text: text || "",
       image: imageUrl,
       video: videoUrl,
     });
+
+    // 👉 THE FIX: Populate the user details before sending it back to the frontend
+    await newPost.populate("user", "name handle avatar role dept");
 
     // Send Success Response
     res.status(201).json(newPost);
@@ -61,11 +63,16 @@ const createPost = async (req, res) => {
 // ==========================================
 // GET ALL POSTS (TIMELINE)
 // ==========================================
+// ==========================================
+// GET ALL POSTS (TIMELINE)
+// ==========================================
 const getAllPosts = async (req, res) => {
   try {
     const posts = await Post.find()
       .sort({ createdAt: -1 })
-      .populate("user", "name handle avatar role dept");
+      .populate("user", "name handle avatar role dept")
+      // 👉 THE FIX: Comments ke andar ke user ki details bhi database se nikal kar laao
+      .populate("comments.user", "name handle avatar role dept");
 
     res.status(200).json(posts);
   } catch (error) {
@@ -122,11 +129,15 @@ const commentPost = async (req, res) => {
     
     post.comments.push(comment);
     await post.save();
+
+    // 👉 THE FIX: Frontend ko bhejane se pehle comment ke andar ke user ka data bhar do
+    await post.populate('comments.user', 'name handle avatar role dept');
+
     res.status(200).json({ message: 'Comment added successfully', comments: post.comments });
   } catch (error) {
     console.error("Error commenting on post:", error.message);
     res.status(500).json({ message: "Server Error" });
   }       
-};      
+};
 
 module.exports = { createPost, getAllPosts, likePost, commentPost };

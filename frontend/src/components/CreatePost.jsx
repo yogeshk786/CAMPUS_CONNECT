@@ -16,7 +16,9 @@ export default function CreatePost({ onPostCreated, user }) {
     setLoading(true);
     const formData = new FormData();
     formData.append('text', text); 
-    if (image) formData.append('image', image);
+    
+    // 👉 THE FIX: 'image' ki jagah 'media' kar diya gaya hai taaki backend se match ho sake
+    if (image) formData.append('media', image);
 
     try {
       const { data } = await API.post('/posts', formData, {
