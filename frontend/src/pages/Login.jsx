@@ -19,8 +19,8 @@ try {
     console.log("LOGGING IN ....")
 
     const response = await API.post('/auth/login' ,{
-        email : email ,
-        password : password
+        email : email.trim() ,
+        password : password.trim()
 
     }) ;
     console.log("Login Sucess :"  , response.data ) ;

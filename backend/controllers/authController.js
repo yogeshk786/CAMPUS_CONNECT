@@ -60,35 +60,43 @@ const registerUser = async (req, res) => {
 // ==========================================
 const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body; // 👉 EXPECT PASSWORD IN LOGIN
-        console.log("🚀 LOGIN ATTEMPT - Email:", email, "| Password:", password);
-        
-        const user = await User.findOne({ email });
-        console.log("🕵️ USER FOUND IN DB:", user ? "YES! Name: " + user.name : "NO USER FOUND!") ;
+        const { email, password } = req.body; 
+        // .trim() use karein taaki extra spaces ka chakkar hi khatam ho jaye
+        const cleanEmail = email.trim();
+        const cleanPassword = password.trim();
 
-        // 👉 VERIFY USER EXISTS AND PASSWORD MATCHES THE HASH
-        if (user && (await bcrypt.compare(password, user.password))) {
-            const token = generateToken(user._id);
+        console.log("🚀 LOGIN ATTEMPT - Email:", cleanEmail, "| Password:", cleanPassword);
+        
+        const user = await User.findOne({ email: cleanEmail });
+        console.log("🕵️ USER FOUND IN DB:", user ? "YES! Name: " + user.name : "NO USER FOUND!");
+
+        if (user) {
+            // Pehle variable define karein
+            const isMatch = await bcrypt.compare(cleanPassword, user.password);
             console.log("🔑 PASSWORD MATCH RESULT:", isMatch);
 
-            res.cookie('jwt', token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production', 
-                sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60 * 1000, 
-            });
+            if (isMatch) {
+                const token = generateToken(user._id);
 
-            res.status(200).json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                handle: user.handle,
-                role: user.role
-            });
-        } else {
-            // Send generic error for security (don't tell them if email or password was wrong)
-            res.status(401).json({ message: 'Invalid email or password' });
+                res.cookie('jwt', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production', 
+                    sameSite: 'strict',
+                    maxAge: 30 * 24 * 60 * 60 * 1000, 
+                });
+
+                return res.status(200).json({
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    handle: user.handle,
+                    role: user.role
+                });
+            }
         }
+
+        // Agar user nahi mila ya password galat hai
+        res.status(401).json({ message: 'Invalid email or password' });
 
     } catch (error) {
         console.error("Error in login:", error.message);
