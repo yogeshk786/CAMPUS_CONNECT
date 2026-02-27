@@ -1,19 +1,24 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Feed from './pages/Feed';
+
+// Pages
 import Login from './pages/Login';
-import Notifications from './pages/Notifications'; // Path sahi check karein
+// 👉 THE FIX IS HERE: Humne 'feed' ko lowercase rakha hai taaki error hamesha ke liye chali jaye
+import Feed from './pages/feed'; 
+import Notifications from './pages/Notifications';
+import Profile from './pages/Profile';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        {/* Protected Routes (Aap login ke baad yahan navigate karte ho) */}
         <Route path="/feed" element={<Feed />} />
-        <Route path="/notifications" element={<Notifications />} /> 
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/profile" element={<Profile />} />
         
-        {/* Default Route */}
-        <Route path="/" element={<Navigate to="/login" />} />
+        {/* Default routes */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/feed" replace />} />
       </Routes>
     </Router>
   );
