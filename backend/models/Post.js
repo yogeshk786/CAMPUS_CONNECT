@@ -1,24 +1,29 @@
 const mongoose = require('mongoose');
 
 const postSchema = new mongoose.Schema({
-    // Who created the post?
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    // The actual content of the post
     text: {
         type: String,
         required: true,
         maxLength: 500
     },
-    // Array of user IDs who liked the post
+    // 👉 ADDED: Image and Video URL fields
+    image: {
+        type: String,
+        default: null
+    },
+    video: {
+        type: String,
+        default: null
+    },
     likes: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    // Array of comment objects
     comments: [{
         user: {
             type: mongoose.Schema.Types.ObjectId,
@@ -34,6 +39,6 @@ const postSchema = new mongoose.Schema({
             default: Date.now
         }
     }]
-}, { timestamps: true }); // Gives us createdAt and updatedAt automatically!
+}, { timestamps: true });
 
 module.exports = mongoose.model('Post', postSchema);
