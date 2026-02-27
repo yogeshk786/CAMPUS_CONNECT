@@ -61,12 +61,15 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body; // 👉 EXPECT PASSWORD IN LOGIN
-
-        const user = await User.findOne({ email });
+        console.log("🚀 LOGIN ATTEMPT - Email:", email, "| Password:", password);
         
+        const user = await User.findOne({ email });
+        console.log("🕵️ USER FOUND IN DB:", user ? "YES! Name: " + user.name : "NO USER FOUND!") ;
+
         // 👉 VERIFY USER EXISTS AND PASSWORD MATCHES THE HASH
         if (user && (await bcrypt.compare(password, user.password))) {
             const token = generateToken(user._id);
+            console.log("🔑 PASSWORD MATCH RESULT:", isMatch);
 
             res.cookie('jwt', token, {
                 httpOnly: true,

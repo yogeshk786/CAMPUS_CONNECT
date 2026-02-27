@@ -19,12 +19,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use(
-  cors({
-    origin: 'http://localhost:5173', // Frontend URL (Vite default)
+app.use(cors({
+    // Ab humne array de diya hai, taaki Vite 5173 pe chale ya 5174 pe, dono allowed honge!
+    origin: ['http://localhost:5173', 'http://localhost:5174'], 
     credentials: true
-  })
-);
+}));
+
 
 // ==================
 // Routes

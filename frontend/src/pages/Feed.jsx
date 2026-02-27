@@ -1,0 +1,1 @@
+export default function Feed() { return <h1>Welcome to CampusConnect Feed!</h1>; }
