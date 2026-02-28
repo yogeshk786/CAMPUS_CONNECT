@@ -1,9 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-// 👉 FIX: useState ke sath useEffect bhi import karna zaroori hai
 import { useState, useEffect } from 'react';
 
 // Pages & Components
-import Login from './pages/Login';
+import Landing from './pages/Landing'; // 👉 Added Landing
 import Feed from './pages/feed'; 
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
@@ -11,7 +10,8 @@ import Sidebar from './components/Sidebar';
 
 // 👉 The Bouncer (ProtectedLayout)
 const ProtectedLayout = ({ children, user }) => {
-  if (!user) return <Navigate to="/login" replace />;
+  // 👉 FIX: Agar bina login koi andar aane ki koshish kare, toh use Landing page ('/') par bhejo
+  if (!user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-black text-white flex justify-center overflow-x-hidden">
@@ -43,25 +43,31 @@ function App() {
     return null; 
   });
 
-  // 👉 THE MASTER FIX: Walkie-Talkie Receiver!
-  // Jaise hi Profile.jsx bolega 'profileUpdated', ye function chalega aur Sidebar ki photo badal dega
+  // 👉 THE MASTER FIX: Walkie-Talkie Receiver (Safe & Intact)
   useEffect(() => {
     const syncUser = () => {
       const storedData = localStorage.getItem('userInfo');
       if (storedData) {
         const parsedData = JSON.parse(storedData);
         setCurrentUser(parsedData.user ? parsedData.user : parsedData);
+      } else {
+        // Agar local storage khali ho jaye (eg. Logout), toh state null karo
+        setCurrentUser(null);
       }
     };
 
-    // Signal ka wait karo
     window.addEventListener('profileUpdated', syncUser);
     
-    // Cleanup
-    return () => window.removeEventListener('profileUpdated', syncUser);
+    // Custom event dispatch for logout synchronization
+    window.addEventListener('storage', syncUser); // Catches localStorage changes from other tabs
+
+    return () => {
+      window.removeEventListener('profileUpdated', syncUser);
+      window.removeEventListener('storage', syncUser);
+    };
   }, []);
 
-  const handleLoginSuccess = () => {
+  const handleAuthSuccess = () => {
     const storedData = localStorage.getItem('userInfo');
     if (storedData) {
       const parsedData = JSON.parse(storedData);
@@ -72,8 +78,14 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+        {/* 🌟 THE ONLY PUBLIC ENTRY POINT (Landing Page + Popup Modal) 🌟 */}
+        <Route path="/" element={
+          currentUser ? <Navigate to="/feed" replace /> : <Landing onAuthSuccess={handleAuthSuccess} />
+        } />
         
+        {/* ❌ /login aur /register hata diye gaye hain kyunki wo ab Landing page ke Modal me hain */}
+        
+        {/* 👑 PROTECTED ROUTES */}
         <Route path="/feed" element={
           <ProtectedLayout user={currentUser}>
             <Feed user={currentUser} />
@@ -92,8 +104,8 @@ function App() {
           </ProtectedLayout>
         } />
         
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/feed" replace />} />
+        {/* Fallback route: Agar koi random URL ho toh main page par le aao */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
