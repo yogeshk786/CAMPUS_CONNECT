@@ -15,6 +15,10 @@ const userSchema = new mongoose.Schema({
     },
     bio: { type: String, maxLength: 160 },
     dept: { type: String },
+    batch: { type: String, default: "" }, // e.g., "2024" or "2021-2025"
+    github: { type: String, default: "" }, // GitHub profile link
+    skills: { type: [String], default: [] }, // Array of strings for skills
+    interests: { type: [String], default: [] }, // Array of strings for interests
 
     // networking array
     connections: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

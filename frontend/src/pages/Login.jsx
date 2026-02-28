@@ -1,77 +1,120 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { GraduationCap, Loader2 } from 'lucide-react';
 import API from '../api/axios';
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); 
+export default function Login({ onLoginSuccess }) {
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError(''); 
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setLoading(true);
+    setError('');
+
+    // Extra spaces hata rahe hain
+    const cleanData = {
+      email: formData.email.trim(),
+      password: formData.password.trim()
+    };
+
+    console.log("🚀 Bhej rahe hain:", cleanData);
 
     try {
-      const response = await API.post('/auth/login', {
-        email: email.trim(),
-        password: password.trim()
-      });
-      
-      localStorage.setItem('userInfo', JSON.stringify(response.data));
+      // 👉 THE FINAL FIX: Yahan endpoint '/auth/login' kar diya hai
+      const { data } = await API.post('/auth/login', cleanData);
+      console.log("📦 Backend se kya aaya:", data);
+      // 1. LocalStorage mein data save karein
+      localStorage.setItem('userInfo', JSON.stringify(data));
+
+      // 2. App.jsx ko batao ki login ho gaya hai
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      }
+
+      // 3. Feed par navigate karein
       navigate('/feed');
     } catch (err) {
-      console.error("login error", err);
-      setError(err.response?.data?.message || 'Server se connect nahi ho paya.');
+      console.error("Login Error:", err.response?.data);
+      setError(err.response?.data?.message || "Invalid email or password");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-900 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 transform transition-all hover:scale-[1.01]">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">CampusConnect</h1>
-          <p className="text-gray-500 mt-2">Sign in karke dekh kaka</p>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <div className="w-full max-w-[400px] space-y-8">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center">
+          <div className="bg-blue-500/10 p-4 rounded-full mb-4">
+            <GraduationCap size={48} className="text-[#1d9bf0]" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight">Sign in to CampusConnect</h1>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
-            <p className="text-red-700 text-sm font-medium">{error}</p>
-          </div>
-        )}
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-xl text-sm text-center animate-in fade-in slide-in-from-top-1">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700">Email Address</label>
+          <div className="space-y-2">
             <input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full mt-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              placeholder="name@college.edu"
+              name="email"
+              placeholder="Email address"
               required
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full bg-black border border-gray-800 rounded-xl p-4 focus:border-[#1d9bf0] outline-none transition-colors text-lg"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700">Password</label>
+          <div className="space-y-2">
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full mt-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              placeholder="••••••••"
+              name="password"
+              placeholder="Password"
               required
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full bg-black border border-gray-800 rounded-xl p-4 focus:border-[#1d9bf0] outline-none transition-colors text-lg"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all active:scale-95"
+            disabled={loading}
+            className="w-full bg-white text-black font-bold py-4 rounded-full text-lg hover:bg-gray-200 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Log In
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                Signing in...
+              </>
+            ) : (
+              'Log in'
+            )}
           </button>
         </form>
+
+        {/* Footer Links */}
+        <div className="text-center text-gray-500">
+          Don't have an account?{' '}
+          <Link to="/register" className="text-[#1d9bf0] hover:underline">
+            Sign up
+          </Link>
+        </div>
       </div>
     </div>
   );

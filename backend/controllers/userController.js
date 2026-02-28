@@ -1,43 +1,58 @@
 const User = require('../models/User');
-const imagekit = require("../config/imagekit"); // Ensure ImageKit is configured
+const imagekit = require("../config/imagekit"); 
 
 // ==========================================
-// 1. UPDATE USER PROFILE (Name, Handle, Avatar)
+// 1. UPDATE USER PROFILE (Name, Handle, Avatar, Skills, etc.)
 // ==========================================
 const updateProfile = async (req, res) => {
     try {
-        const { name, handle } = req.body;
+        const { name, handle, batch, github, skills, interests } = req.body;
         const userId = req.user._id;
-        let avatarUrl = req.user.avatar; // Existing avatar default
+        
+        // Comma-separated strings ko arrays mein badle, empty aane par safe rahe
+        const parsedSkills = skills ? skills.split(',').map(s => s.trim()).filter(s => s) : [];
+        const parsedInterests = interests ? interests.split(',').map(i => i.trim()).filter(i => i) : [];
+        
+        // Saara data ek object mein pack karein
+        let updateData = {
+            name, 
+            handle, 
+            batch,
+            github,
+            skills: parsedSkills,
+            interests: parsedInterests
+        };
 
         // Handle unique check: Ensure the new handle isn't taken by someone else
         if (handle) {
             const existingUser = await User.findOne({ handle, _id: { $ne: userId } });
             if (existingUser) {
-                return res.status(400).json({ message: "Handle already taken" });
+                return res.status(400).json({ message: "Handle already taken by another user" });
             }
         }
 
-        // ImageKit Upload: If a new file is sent via Multer
+        // ImageKit Upload: Agar nayi file aayi hai toh process karein
         if (req.file) {
             const response = await imagekit.upload({
                 file: req.file.buffer,
                 fileName: `avatar_${userId}_${Date.now()}`,
                 folder: "campus_connect_avatars"
             });
-            avatarUrl = response.url;
+            // Naya Image URL updateData mein jod dein
+            updateData.avatar = response.url;
         }
 
+        // Database ko naye data ke saath update karein
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { $set: { name, handle, avatar: avatarUrl } },
+            { $set: updateData },
             { new: true, runValidators: true }
         ).select('-password');
 
         res.status(200).json(updatedUser);
     } catch (error) {
         console.error("Update Profile Error:", error.message);
-        res.status(500).json({ message: "Server Error" });
+        res.status(500).json({ message: "Server Error during profile update" });
     }
 };
 
@@ -46,7 +61,7 @@ const updateProfile = async (req, res) => {
 // ==========================================
 const unconnectUser = async (req, res) => {
     try {
-        const targetId = req.params.id; // The user to remove
+        const targetId = req.params.id; 
         const myId = req.user._id;
 
         // Mutual removal from both users' connection lists
@@ -67,8 +82,8 @@ const getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id)
             .select('-password')
-            .populate('connections', 'name handle avatar role dept') 
-            .populate('pendingRequests', 'name handle avatar role dept');
+            .populate('connections', 'name handle avatar role dept batch skills') 
+            .populate('pendingRequests', 'name handle avatar role dept batch');
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
@@ -109,6 +124,7 @@ const sendConnectionRequest = async (req, res) => {
 
         res.status(200).json({ message: "Connection request sent!" });
     } catch (error) {
+        console.error("Send Request Error:", error.message);
         res.status(500).json({ message: "Server Error" });
     }
 };
@@ -141,6 +157,7 @@ const acceptConnectionRequest = async (req, res) => {
 
         res.status(200).json({ message: "Request accepted!" });
     } catch (error) {
+        console.error("Accept Request Error:", error.message);
         res.status(500).json({ message: "Server Error" });
     }
 };
@@ -151,22 +168,24 @@ const acceptConnectionRequest = async (req, res) => {
 const rejectConnectionRequest = async (req, res) => {
     try {
         const requesterId = req.params.id; 
-        const currentUserId = req.user._id;         
+        const currentUserId = req.user._id;         
 
         const currentUser = await User.findById(currentUserId);
 
         if (!currentUser.pendingRequests.includes(requesterId)) {
             return res.status(400).json({ message: "No pending request" });
-        }                      
+        }                      
 
         currentUser.pendingRequests = currentUser.pendingRequests.filter(
             (id) => id.toString() !== requesterId
-        );  
+        );  
         await currentUser.save();
+        
         res.status(200).json({ message: "Request rejected!" });
     } catch (error) {
+        console.error("Reject Request Error:", error.message);
         res.status(500).json({ message: "Server Error" });
-    }       
+    }       
 };
 
 module.exports = { 
