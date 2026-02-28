@@ -2,22 +2,22 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useState, useEffect } from 'react';
 
 // Pages & Components
-import Landing from './pages/Landing'; // 👉 Added Landing
-import Feed from './pages/feed'; 
+import Landing from './pages/Landing'; 
+import Feed from './pages/feed'; // Ensure case matches your folder (Feed vs feed)
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Sidebar from './components/Sidebar';
 
-// 👉 The Bouncer (ProtectedLayout)
-const ProtectedLayout = ({ children, user }) => {
-  // 👉 FIX: Agar bina login koi andar aane ki koshish kare, toh use Landing page ('/') par bhejo
+// 👉 The Bouncer (ProtectedLayout) - Ab ye onLogout bhi lega
+const ProtectedLayout = ({ children, user, onLogout }) => {
   if (!user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-black text-white flex justify-center overflow-x-hidden">
       <div className="w-full max-w-[1265px] flex justify-between">
         <div className="w-[80px] xl:w-[275px]">
-          <Sidebar user={user} />
+          {/* 👉 Sidebar ko onLogout pass kiya */}
+          <Sidebar user={user} onLogout={onLogout} />
         </div>
         <main className="w-full max-w-[600px] border-x border-gray-800/60 min-h-screen">
           {children}
@@ -43,7 +43,12 @@ function App() {
     return null; 
   });
 
-  // 👉 THE MASTER FIX: Walkie-Talkie Receiver (Safe & Intact)
+  // 👉 MASTER LOGOUT: Isse state null hogi aur App redirect karega
+  const handleLogout = () => {
+    localStorage.removeItem('userInfo');
+    setCurrentUser(null);
+  };
+
   useEffect(() => {
     const syncUser = () => {
       const storedData = localStorage.getItem('userInfo');
@@ -51,15 +56,12 @@ function App() {
         const parsedData = JSON.parse(storedData);
         setCurrentUser(parsedData.user ? parsedData.user : parsedData);
       } else {
-        // Agar local storage khali ho jaye (eg. Logout), toh state null karo
         setCurrentUser(null);
       }
     };
 
     window.addEventListener('profileUpdated', syncUser);
-    
-    // Custom event dispatch for logout synchronization
-    window.addEventListener('storage', syncUser); // Catches localStorage changes from other tabs
+    window.addEventListener('storage', syncUser);
 
     return () => {
       window.removeEventListener('profileUpdated', syncUser);
@@ -78,33 +80,29 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* 🌟 THE ONLY PUBLIC ENTRY POINT (Landing Page + Popup Modal) 🌟 */}
         <Route path="/" element={
           currentUser ? <Navigate to="/feed" replace /> : <Landing onAuthSuccess={handleAuthSuccess} />
         } />
         
-        {/* ❌ /login aur /register hata diye gaye hain kyunki wo ab Landing page ke Modal me hain */}
-        
-        {/* 👑 PROTECTED ROUTES */}
+        {/* 👑 PROTECTED ROUTES - handleLogout pass karna zaroori hai */}
         <Route path="/feed" element={
-          <ProtectedLayout user={currentUser}>
+          <ProtectedLayout user={currentUser} onLogout={handleLogout}>
             <Feed user={currentUser} />
           </ProtectedLayout>
         } />
         
         <Route path="/notifications" element={
-          <ProtectedLayout user={currentUser}>
+          <ProtectedLayout user={currentUser} onLogout={handleLogout}>
             <Notifications user={currentUser} />
           </ProtectedLayout>
         } />
         
         <Route path="/profile" element={
-          <ProtectedLayout user={currentUser}>
+          <ProtectedLayout user={currentUser} onLogout={handleLogout}>
             <Profile user={currentUser} />
           </ProtectedLayout>
         } />
         
-        {/* Fallback route: Agar koi random URL ho toh main page par le aao */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
