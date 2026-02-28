@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import AuthModal from '../components/AuthModal';
+// 👉 THE FIX: Dono files same folder mein hain, isliye path './AuthModal' hoga
+import AuthModal from './AuthModal';
 
-// 👉 NOTE: App.jsx se 'onAuthSuccess' prop aayega yahan
 export default function Landing({ onAuthSuccess }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login'); // 'login' ya 'register'
@@ -14,7 +14,7 @@ export default function Landing({ onAuthSuccess }) {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col lg:flex-row relative">
       
-      {/* Left Side */}
+      {/* Left Side - Big Logo Section */}
       <div className="lg:flex-1 flex items-center justify-center p-12 bg-gradient-to-br from-[#1d9bf0]/5 to-transparent lg:border-r border-gray-800">
         <img 
           src="/logo.png" 
@@ -23,9 +23,9 @@ export default function Landing({ onAuthSuccess }) {
         />
       </div>
 
-      {/* Right Side */}
+      {/* Right Side - Auth Options */}
       <div className="lg:flex-[0.8] flex flex-col justify-center p-8 lg:p-16 animate-in fade-in slide-in-from-right-8 duration-700">
-        <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-12">
+        <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-12 leading-tight">
           Campus life,<br /> happening now.
         </h1>
         
@@ -33,7 +33,6 @@ export default function Landing({ onAuthSuccess }) {
           <h2 className="text-3xl font-bold mb-8">Join CampusConnect today.</h2>
           
           <div className="space-y-4">
-            {/* 👉 THE FIX: Ab yeh navigate nahi karega, balki Modal kholega */}
             <button 
               onClick={() => openModal('register')}
               className="w-full bg-[#1d9bf0] text-white font-bold py-3.5 rounded-full text-lg hover:bg-[#1a8cd8] transition active:scale-95 shadow-lg shadow-[#1d9bf0]/20 cursor-pointer"
@@ -60,7 +59,7 @@ export default function Landing({ onAuthSuccess }) {
         </div>
       </div>
 
-      {/* 👉 THE FIX: Humara chamakta hua Auth Modal */}
+      {/* Humara chamakta hua Auth Modal */}
       <AuthModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
