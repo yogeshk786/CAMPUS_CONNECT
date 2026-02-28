@@ -35,7 +35,7 @@ export default function Sidebar({ user, onLogout }) {
           onClick={() => navigate('/feed')} 
           className="p-3 mb-2 hover:bg-white/5 rounded-full cursor-pointer transition-all duration-200 text-[#1d9bf0] w-fit active:scale-95"
         >
-          <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />
+          <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
         </div>
 
         {/* Navigation */}
