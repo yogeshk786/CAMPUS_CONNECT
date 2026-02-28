@@ -1,24 +1,19 @@
-import { useState, useEffect, useCallback } from 'react'; 
-import { Home, Bell, User, LogOut } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react'; 
+import { Home, Bell, User, LogOut, Sparkles } from 'lucide-react';
+import { useNavigate, useLocation, useInRouterContext } from 'react-router-dom';
 
-export default function Sidebar({ user, onLogout }) {
-  const navigate = useNavigate();
-  const location = useLocation();
+// 👉 Main UI Component: Pure GenZ & Colorful
+function SidebarView({ user, onLogout, navigate, location }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // 👉 FIXED: useEffect ko clean rakha hai loop se bachne ke liye
   useEffect(() => {
-    // Isse React render cycle ke baad call karega, loop nahi banega
     const timer = setTimeout(() => {
       setUnreadCount(3); 
     }, 100); 
-
-    return () => clearTimeout(timer); // Cleanup memory leak se bachne ke liye
+    return () => clearTimeout(timer); 
   }, []); 
 
-  // 👉 Memoized Logout: Taaki modal open hone par Sidebar re-render na ho
   const handleFinalLogout = useCallback(() => {
     setShowLogoutModal(false);
     if (onLogout) onLogout(); 
@@ -27,43 +22,52 @@ export default function Sidebar({ user, onLogout }) {
   }, [onLogout, navigate]);
 
   return (
-    <aside className="w-20 xl:w-[275px] sticky top-0 h-screen flex flex-col justify-between py-2 border-r border-gray-800/40 bg-black select-none">
-      <div className="flex flex-col items-center xl:items-start">
+    <aside className="w-[80px] xl:w-[280px] sticky top-0 z-[999] h-screen flex flex-col justify-between py-4 px-2 xl:px-4 border-r border-white/5 bg-[#050505]/95 backdrop-blur-2xl select-none transition-all duration-300">
+      
+      <div className="flex flex-col items-center xl:items-start w-full">
         
-        {/* Logo Section */}
+        {/* 🚀 Animated Logo Section */}
         <div 
           onClick={() => navigate('/feed')} 
-          className="p-3 mb-2 hover:bg-white/5 rounded-full cursor-pointer transition-all duration-200 text-[#1d9bf0] w-fit active:scale-95"
+          className="relative p-1 mb-6 xl:ml-2 rounded-full cursor-pointer group transition-all duration-300 active:scale-90"
         >
-          <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-blue-500 to-purple-500 rounded-full blur-md opacity-40 group-hover:opacity-80 transition-opacity duration-300"></div>
+          <div className="relative bg-black p-2 rounded-full border border-white/10">
+            <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain group-hover:rotate-12 transition-transform duration-300" />
+          </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="space-y-1 w-full font-medium">
+        {/* 🌈 Navigation Links */}
+        <nav className="space-y-3 w-full font-bold">
           <NavItem 
-            icon={<Home size={26} />} 
-            label="Home" 
+            icon={<Home size={24} />} 
+            label="Feed" 
             active={location.pathname === '/feed'} 
             onClick={() => navigate('/feed')} 
           />
 
           <div 
             onClick={() => navigate('/notifications')} 
-            className={`flex items-center gap-4 p-3 rounded-full cursor-pointer transition-all duration-200 w-fit xl:pr-8 active:scale-95 ${location.pathname === '/notifications' ? 'font-bold text-white' : 'text-gray-300'} hover:bg-gray-900`}
+            className={`flex items-center gap-4 p-3.5 rounded-2xl cursor-pointer transition-all duration-300 w-full active:scale-95 group relative
+              ${location.pathname === '/notifications' 
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-[0_0_20px_rgba(168,85,247,0.3)] text-white' 
+                : 'text-gray-400 hover:bg-white/[0.04] hover:text-white hover:translate-x-1'}`}
           >
-            <div className="relative">
-              <Bell size={26} />
+            <div className="relative flex justify-center xl:justify-start">
+              <div className={`${location.pathname === '/notifications' ? 'scale-110' : 'group-hover:scale-110 transition-transform duration-300'}`}>
+                <Bell size={24} />
+              </div>
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#1d9bf0] text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full border border-black animate-in fade-in zoom-in duration-300">
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-black h-4.5 w-4.5 flex items-center justify-center rounded-full border-[2px] border-[#050505] animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.6)]">
                   {unreadCount}
                 </span>
               )}
             </div>
-            <span className="hidden xl:inline text-[19px]">Notifications</span>
+            <span className="hidden xl:inline text-[17px] tracking-wide">Notifications</span>
           </div>
 
           <NavItem 
-            icon={<User size={26} />} 
+            icon={<User size={24} />} 
             label="Profile" 
             active={location.pathname === '/profile'} 
             onClick={() => navigate('/profile')} 
@@ -71,48 +75,52 @@ export default function Sidebar({ user, onLogout }) {
         </nav>
       </div>
 
-      {/* User Section & Logout Trigger */}
+      {/* 👤 User Section & Logout Trigger */}
       <div 
         onClick={() => setShowLogoutModal(true)} 
-        className="mb-4 flex items-center gap-3 p-3 hover:bg-gray-900 rounded-full cursor-pointer group transition-all duration-200 active:scale-95"
+        className="mt-4 flex items-center gap-3 p-2 xl:p-3 hover:bg-white/[0.04] rounded-[2rem] cursor-pointer group transition-all duration-300 active:scale-95 border border-transparent hover:border-white/5"
       >
-        <div className="relative">
+        <div className="relative p-[2px] bg-gradient-to-tr from-pink-500 via-purple-500 to-blue-500 rounded-full flex-shrink-0">
           <img 
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`} 
-            className="w-10 h-10 rounded-full border border-gray-800 object-cover bg-gray-900" 
+            src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'Vibe'}`} 
+            className="w-10 h-10 xl:w-11 xl:h-11 rounded-full border-2 border-black object-cover bg-gray-900" 
             alt="Avatar"
           />
         </div>
-        <div className="hidden xl:block overflow-hidden">
-          <p className="font-bold text-white text-[15px] truncate max-w-[140px]">{user?.name}</p>
-          <p className="text-gray-500 text-[14px] truncate max-w-[140px]">@{user?.handle || 'username'}</p>
+        <div className="hidden xl:block overflow-hidden w-full">
+          <p className="font-black text-white text-[15px] truncate">{user?.name || 'Vibe Seeker'}</p>
+          <p className="text-gray-500 text-[13px] font-mono truncate tracking-tight">@{user?.handle || 'user'}</p>
         </div>
-        <LogOut size={20} className="hidden xl:block ml-auto text-gray-500 group-hover:text-red-500 transition-colors" />
+        <LogOut size={20} className="hidden xl:block ml-auto text-gray-600 group-hover:text-red-500 transition-colors duration-300" />
       </div>
 
-      {/* Logout Modal Overlay */}
+      {/* 🔮 Glassmorphism Logout Modal */}
       {showLogoutModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-[#15202b] border border-gray-800 rounded-3xl p-8 max-w-[340px] w-full animate-in zoom-in-95 duration-200 shadow-2xl">
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-[#1d9bf0]/10 p-4 rounded-full mb-4">
-                 <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-8 max-w-[340px] w-full animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+            
+            {/* Background Glow */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-red-500/20 blur-[50px] rounded-full"></div>
+            
+            <div className="flex flex-col items-center text-center relative z-10">
+              <div className="bg-red-500/10 p-4 rounded-full mb-5 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.2)] text-red-500">
+                 <LogOut size={32} />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Log out?</h3>
-              <p className="text-gray-400 text-[15px] mb-8 leading-relaxed">
-                Confirming will end your session and take you back to the landing page.
+              <h3 className="text-3xl font-black text-white mb-2 tracking-tighter">Sign Out?</h3>
+              <p className="text-gray-400 text-[14px] mb-8 font-medium">
+                Taking a break? We'll keep your vibes safe until you return. ✨
               </p>
               
-              <div className="flex flex-col gap-3 w-full font-bold">
+              <div className="flex flex-col gap-3 w-full font-black">
                 <button
-                  onClick={handleFinalLogout}
-                  className="w-full bg-white text-black py-3.5 rounded-full hover:bg-gray-200 transition-all active:scale-95 cursor-pointer shadow-lg shadow-white/5"
+                  onClick={(e) => { e.stopPropagation(); handleFinalLogout(); }}
+                  className="w-full bg-gradient-to-r from-red-500 to-pink-600 text-white py-4 rounded-2xl hover:opacity-90 transition-all active:scale-95 cursor-pointer shadow-[0_0_20px_rgba(239,68,68,0.3)] text-lg"
                 >
-                  Log out
+                  Yes, Log out
                 </button>
                 <button
-                  onClick={() => setShowLogoutModal(false)}
-                  className="w-full bg-transparent border border-gray-700 text-white py-3.5 rounded-full hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                  onClick={(e) => { e.stopPropagation(); setShowLogoutModal(false); }}
+                  className="w-full bg-white/5 border border-white/10 text-white py-4 rounded-2xl hover:bg-white/10 transition-all active:scale-95 cursor-pointer text-lg"
                 >
                   Cancel
                 </button>
@@ -125,14 +133,41 @@ export default function Sidebar({ user, onLogout }) {
   );
 }
 
-// 🧭 Small Helper Component for Clean Code
+// 👉 Safe Wrapper for Router Context (ESLint & Preview Fix)
+function SidebarWithRouter(props) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return <SidebarView {...props} navigate={navigate} location={location} />;
+}
+
+export default function Sidebar(props) {
+  const hasRouter = useInRouterContext(); 
+  
+  if (hasRouter) {
+    return <SidebarWithRouter {...props} />;
+  }
+  
+  // Fallback for Canvas/Preview
+  const mockNavigate = (path) => console.log(`[Mock Navigate]: To ${path}`);
+  const mockLocation = { pathname: '/feed' };
+  return <SidebarView {...props} navigate={mockNavigate} location={mockLocation} />;
+}
+
+// 🧭 Dynamic NavItem Component
 function NavItem({ icon, label, active, onClick }) {
   return (
     <div 
       onClick={onClick} 
-      className={`flex items-center gap-4 p-3 rounded-full cursor-pointer transition-all duration-200 w-fit xl:pr-8 active:scale-95 ${active ? 'font-bold text-white' : 'text-gray-300'} hover:bg-gray-900`}
+      className={`flex items-center gap-4 p-3.5 rounded-2xl cursor-pointer transition-all duration-300 w-full active:scale-95 group
+        ${active 
+          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-[0_0_20px_rgba(79,70,229,0.3)] text-white' 
+          : 'text-gray-400 hover:bg-white/[0.04] hover:text-white hover:translate-x-1'}`}
     >
-      {icon} <span className="hidden xl:inline text-[19px]">{label}</span>
+      <div className={`flex justify-center xl:justify-start ${active ? 'scale-110' : 'group-hover:scale-110 transition-transform duration-300'}`}>
+        {icon}
+      </div>
+      <span className="hidden xl:inline text-[17px] tracking-wide">{label}</span>
+      {active && <Sparkles size={14} className="hidden xl:block ml-auto text-blue-200 animate-pulse" />}
     </div>
   );
 }

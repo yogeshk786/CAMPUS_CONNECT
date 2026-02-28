@@ -198,7 +198,7 @@ export default function Profile() {
 
             {/* 📊 STATS CARDS */}
             <div className="grid grid-cols-4 gap-3">
-              <BentoCard icon={<Zap size={20} className="text-[#1d9bf0]" />} count={connections.length} label="Squad" color="blue" />
+              <BentoCard icon={<Zap size={20} className="text-[#1d9bf0]" />} count={connections.length} label="Connection" color="blue" />
               <BentoCard icon={<Flame size={20} className="text-orange-500" />} count={user?.streak || 0} label="Streak" color="orange" />
               <BentoCard icon={<Heart size={20} className="text-pink-500" />} count={user?.hearts || 0} label="Hearts" color="pink" />
               <BentoCard icon={<Award size={20} className="text-yellow-500" />} count={user?.badgesCount || 0} label="Badges" color="yellow" />
@@ -208,7 +208,7 @@ export default function Profile() {
             <div className="space-y-6">
               <div className="flex gap-6 md:gap-8 border-b border-white/5">
                 <TabItem active={activeTab === 'skills'} label="Skills" onClick={() => setActiveTab('skills')} />
-                <TabItem active={activeTab === 'squad'} label="Squad" onClick={() => setActiveTab('squad')} />
+                <TabItem active={activeTab === 'squad'} label="Connection" onClick={() => setActiveTab('squad')} />
                 <TabItem active={activeTab === 'about'} label="About" onClick={() => setActiveTab('about')} />
               </div>
 
@@ -236,7 +236,7 @@ export default function Profile() {
                 )}
 
                 {/* SQUAD TAB */}
-                {activeTab === 'squad' && (
+                {activeTab === 'Connection' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-left-6 duration-500">
                     {connections.length > 0 ? (
                       connections.map(c => (
