@@ -1,115 +1,108 @@
 import { useState } from 'react';
-// Axios import path ko check karein, agar '../api/axios' kaam nahi kar raha toh 'axios' use karein
-import axios from 'axios'; 
-import { UserPlus, UserCheck, Check, Loader2 } from 'lucide-react';
+import axios from 'axios';
+import { UserPlus, Loader2, CheckCircle2, Clock } from 'lucide-react';
 
-/**
- * CompactConnectButton Component
- * * Ye button teen states handle karta hai:
- * 1. Connected: Agar user pehle se friend hai.
- * 2. Requested: Agar request bheji ja chuki hai.
- * 3. Connect: Nayi request bhejne ke liye.
- */
-export default function CompactConnectButton({ targetUserId, isConnected, initialIsPending = false }) {
-  // Local state sirf 'loading' animation dikhane ke liye hai
+// API instance yahan define kar diya hai taaki Canvas mein compilation error na aaye
+const API = axios.create({
+  baseURL: 'http://localhost:5000/api', 
+  withCredentials: true
+});
+
+export default function CompactConnectButton({ targetUserId, isConnected, initialIsPending }) {
   const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState('');
+  
+  // 👉 FIX 1: Sirf Optimistic (turant) update ke liye state banaya, sync karne ki jhanjhat khatam
+  const [optimisticPending, setOptimisticPending] = useState(false);
+  const [optimisticConnected, setOptimisticConnected] = useState(false);
 
-  // Custom API instance (Replace with your actual API path if needed)
-  const API = axios.create({
-    baseURL: '/api', 
-    withCredentials: true
-  });
+  // 👉 FIX 2: Derived State - Agar parent ne true bheja, ya humne turant click kiya, dono case mein True manega
+  const finalConnected = isConnected || optimisticConnected;
+  const finalPending = initialIsPending || optimisticPending;
 
   const handleConnect = async (e) => {
-    e.stopPropagation(); 
-    
-    // Safety check: Agar pehle se connected/pending hai ya load ho raha hai toh return
-    if (isConnected || initialIsPending || loading) return;
+    e.preventDefault();
+    e.stopPropagation();
 
-    setLoading(true); 
-    
+    // Agar pehle se connected ya requested hai, toh request mat bhejo
+    if (!targetUserId || finalConnected || finalPending || loading) {
+      if (!targetUserId) setErrorText('Error: ID missing');
+      return;
+    }
+
+    setLoading(true);
+    setErrorText(''); 
+
     try {
-      // Backend ko connection request bhejein
+      // Backend call
       await API.post(`/users/connect/${targetUserId}`);
       
-      /**
-       * Sabse important step:
-       * Ye event poore App ko batata hai ki profile data change ho gaya hai.
-       * Isse App.jsx background refresh karega aur button ka status 'Requested' ho jayega.
-       */
+      // Success hote hi INSTANTLY pending badge dikhao
+      setOptimisticPending(true); 
+
+      // Background mein App ko sync karne bol do
       window.dispatchEvent(new Event('profileUpdated'));
-      
+
     } catch (err) {
-      console.error("Connect error:", err);
-      // Agar error aaye toh loading band kar dein
+      console.error("❌ API Error:", err.response?.data || err.message);
+      const errorMsg = err.response?.data?.message?.toLowerCase() || '';
+      
+      if (err.response?.status === 404) {
+        setErrorText('Route not found (404)');
+      } else if (err.response?.status === 400) {
+        
+        // Agar backend bole ki pehle se "connected" ya "friend" ho:
+        if (errorMsg.includes('connected') || errorMsg.includes('friend') || errorMsg.includes('accepted')) {
+          setOptimisticConnected(true);
+        } else {
+          // Agar backend bole ki pehle se "request sent" hai:
+          setOptimisticPending(true); 
+        }
+        
+      } else {
+        setErrorText('Connection failed!');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Status derive karein: Priority order -> Connected > Loading > Pending > None
-  let displayStatus = 'none';
-  if (isConnected) {
-    displayStatus = 'connected';
-  } else if (loading) {
-    displayStatus = 'loading';
-  } else if (initialIsPending) {
-    displayStatus = 'pending';
-  }
-
-  // UI styling based on current status
-  let buttonStyle = "";
-  let buttonContent = null;
-
-  switch (displayStatus) {
-    case 'connected':
-      buttonStyle = "bg-green-500/10 border border-green-500/30 text-green-500 cursor-default";
-      buttonContent = (
-        <>
-          <UserCheck size={16} />
-          <span className="font-bold">Connected</span>
-        </>
-      );
-      break;
-    case 'pending':
-      buttonStyle = "bg-[#00ba7c]/10 border border-[#00ba7c] text-[#00ba7c] cursor-default";
-      buttonContent = (
-        <>
-          <Check size={16} strokeWidth={3} />
-          <span className="font-bold">Requested</span>
-        </>
-      );
-      break;
-    case 'loading':
-      buttonStyle = "bg-gray-200 text-black opacity-80 cursor-wait";
-      buttonContent = (
-        <>
-          <Loader2 size={16} className="animate-spin" />
-          <span className="font-bold">Sending...</span>
-        </>
-      );
-      break;
-    case 'none':
-    default:
-      buttonStyle = "bg-white text-black hover:bg-gray-200 active:scale-95 shadow-lg shadow-white/5";
-      buttonContent = (
-        <>
-          <UserPlus size={16} />
-          <span className="font-bold">Connect</span>
-        </>
-      );
-      break;
-  }
-
-  return (
-    <button 
-      onClick={handleConnect}
-      disabled={displayStatus !== 'none'}
-      className={`flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] transition-all duration-300 ease-in-out min-w-[110px] cursor-pointer ${buttonStyle}`}
-    >
-      <div className="flex items-center gap-1.5 transition-opacity duration-300">
-        {buttonContent}
+  // 1️⃣ Sabse pehle Connected status check hoga
+  if (finalConnected) {
+    return (
+      <div className="flex items-center gap-1 px-3 py-1 bg-green-500/10 text-green-500 text-[11px] font-bold rounded-full border border-green-500/20 cursor-default shadow-sm">
+        <CheckCircle2 size={12} /> Connected
       </div>
-    </button>
+    );
+  }
+
+  // 2️⃣ Agar connected nahi hai, par Requested hai
+  if (finalPending) {
+    return (
+      <div className="flex items-center gap-1 px-3 py-1 bg-pink-500/10 text-gray-500 text-[11px] font-bold rounded-full border border-gray-500/20 cursor-default shadow-sm">
+        <Clock size={12} /> Requested
+      </div>
+    );
+  }
+
+  // 3️⃣ Agar dono nahi hai, toh Connect karne ka option do
+  return (
+    <div className="flex flex-col items-center relative">
+      <button
+        onClick={handleConnect}
+        disabled={loading}
+        className="flex items-center justify-center gap-1.5 px-4 py-1.5 bg-white text-black rounded-full text-[12px] font-black hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-md relative z-10"
+      >
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+        {loading ? "Wait..." : "Connect"}
+      </button>
+      
+      {/* Error message */}
+      {errorText && (
+        <span className="absolute top-[110%] text-red-500 bg-red-100 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap z-20 shadow-sm">
+          {errorText}
+        </span>
+      )}
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
-// Pages & Components
+// 👉 ASLI IMPORTS (Uncommented and restored)
+import API from './api/axios'; 
 import Landing from './pages/Landing'; 
 import Feed from './pages/feed';
 import Notifications from './pages/Notifications';
@@ -9,6 +10,10 @@ import Profile from './pages/Profile';
 import Sidebar from './components/Sidebar';
 import RightSidebar from './components/RightSidebar'; 
 
+/**
+ * ProtectedLayout: Wraps the main app pages. 
+ * Redirects to landing if no user is authenticated.
+ */
 const ProtectedLayout = ({ children, user, onLogout, isDarkMode, toggleTheme }) => {
   if (!user) return <Navigate to="/" replace />;
 
@@ -37,6 +42,7 @@ const ProtectedLayout = ({ children, user, onLogout, isDarkMode, toggleTheme }) 
 };
 
 function App() {
+  // 1. Initial State from LocalStorage
   const [currentUser, setCurrentUser] = useState(() => {
     const storedData = localStorage.getItem('userInfo');
     if (storedData) {
@@ -48,10 +54,12 @@ function App() {
     return null; 
   });
 
+  // 2. Theme Management
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark' || 
-        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) return savedTheme === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     return true; 
   });
@@ -73,6 +81,7 @@ function App() {
     setCurrentUser(null);
   };
 
+  // 3. MASTER SYNC: Refresh hone par backend se connections mangwana
   useEffect(() => {
     const syncUser = () => {
       const storedData = localStorage.getItem('userInfo');
@@ -83,13 +92,38 @@ function App() {
         setCurrentUser(null);
       }
     };
-    window.addEventListener('profileUpdated', syncUser);
+
+    const fetchFreshData = async () => {
+      const storedData = localStorage.getItem('userInfo');
+      if (!storedData) return;
+
+      try {
+        // Latest profile fetch
+        const { data: freshUser } = await API.get('/users/profile');
+        const parsedData = JSON.parse(storedData);
+        
+        // Update storage and state (Persistence Fix)
+        const updatedStorage = { ...parsedData, user: freshUser };
+        localStorage.setItem('userInfo', JSON.stringify(updatedStorage));
+        setCurrentUser(freshUser);
+      } catch (err) {
+        console.error("Master sync failed:", err);
+        if (err.response?.status === 401) handleLogout();
+      }
+    };
+
+    // Listen for manual triggers from buttons
+    window.addEventListener('profileUpdated', fetchFreshData);
     window.addEventListener('storage', syncUser);
+
+    // Page refresh par automatically update karein
+    if (currentUser) fetchFreshData();
+
     return () => {
-      window.removeEventListener('profileUpdated', syncUser);
+      window.removeEventListener('profileUpdated', fetchFreshData);
       window.removeEventListener('storage', syncUser);
     };
-  }, []);
+  }, []); 
 
   const handleAuthSuccess = () => {
     const storedData = localStorage.getItem('userInfo');
@@ -124,7 +158,6 @@ function App() {
           </ProtectedLayout>
         } />
 
-        {/* 👉 THE FIX: Dusre users ki profile par jane ke liye yeh route zaroori hai */}
         <Route path="/user/:id" element={
           <ProtectedLayout user={currentUser} onLogout={handleLogout} isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
             <Profile user={currentUser} />
