@@ -4,10 +4,11 @@ import {
   Camera, UserMinus, Settings2, Github, GraduationCap, 
   Sparkles, Heart, Zap, Award, Flame, MapPin, ArrowLeft
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { id } = useParams(); // URL se ID aayegi (agar kisi aur ki profile dekh rahe hain)
 
   const [user, setUser] = useState(null);
   const [connections, setConnections] = useState([]);
@@ -22,27 +23,38 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState('skills'); 
   const fileInputRef = useRef();
 
+  // 👉 Check karega ki URL mein ID hai ya nahi. Agar ID nahi hai, matlab ye aapki khud ki profile hai.
+  const isOwnProfile = !id; 
+
   const fetchProfile = useCallback(async () => {
     try {
-      const { data } = await API.get('/users/profile');
+      setLoading(true);
+      // Agar khud ki profile hai toh '/users/profile', warna '/users/id' ko call karega
+      const endpoint = isOwnProfile ? '/users/profile' : `/users/${id}`;
+      const { data } = await API.get(endpoint);
+      
       setUser(data);
       setConnections(data.connections || []);
       
-      setFormData({ 
-        name: data.name || '', 
-        handle: data.handle || '',
-        batch: data.batch || '',
-        github: data.github || '',
-        bio: data.bio || '',
-        skills: data.skills?.join(', ') || '',
-        interests: data.interests?.join(', ') || ''
-      });
+      if (isOwnProfile) {
+        setFormData({ 
+          name: data.name || '', 
+          handle: data.handle || '',
+          batch: data.batch || '',
+          github: data.github || '',
+          bio: data.bio || '',
+          skills: data.skills?.join(', ') || '',
+          interests: data.interests?.join(', ') || ''
+        });
+      }
     } catch (err) {
       console.error("Profile fetch error:", err);
+      // Agar dusre ki profile fetch na ho paye, toh feed par wapas bhej do
+      if (!isOwnProfile) navigate('/feed');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [id, isOwnProfile, navigate]);
 
   useEffect(() => {
     fetchProfile();
@@ -50,6 +62,8 @@ export default function Profile() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!isOwnProfile) return; // Dusre ki profile update nahi kar sakte
+
     const data = new FormData();
     Object.keys(formData).forEach(key => data.append(key, formData[key]));
 
@@ -74,11 +88,11 @@ export default function Profile() {
     }
   };
 
-  const handleUnconnect = async (id) => {
+  const handleUnconnect = async (connectionId) => {
     if (!window.confirm("Remove this connection?")) return;
     try {
-      await API.post(`/users/unconnect/${id}`);
-      setConnections(prev => prev.filter(c => c._id !== id));
+      await API.post(`/users/unconnect/${connectionId}`);
+      setConnections(prev => prev.filter(c => c._id !== connectionId));
     } catch (err) { console.error(err); }
   };
 
@@ -90,46 +104,47 @@ export default function Profile() {
   );
 
   return (
-    // 👉 UI UPGRADE: bg-transparent rakha hai kyunki background App.jsx handle kar raha hai
-    <div className="text-gray-900 dark:text-white selection:bg-[#1d9bf0]/30 font-sans pb-20 transition-colors duration-500">
+    <div className="text-gray-900 dark:text-white selection:bg-[#1d9bf0]/30 font-sans pb-20 transition-colors duration-500 min-h-screen bg-gray-50 dark:bg-[#050505]">
       
-      {/* 🚀 STICKY GLASS NAV */}
+      {/* STICKY GLASS NAV */}
       <header className="sticky top-0 z-50 bg-white/70 dark:bg-black/40 backdrop-blur-2xl border-b border-gray-200 dark:border-white/5 px-6 py-4 flex items-center justify-between transition-colors duration-500">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-2xl transition active:scale-75 cursor-pointer text-gray-700 dark:text-white">
             <ArrowLeft size={22} />
           </button>
-          <h2 className="text-xl font-black tracking-tighter flex items-center gap-2">
-            PROFILE <Sparkles size={16} className="text-[#1d9bf0] fill-[#1d9bf0]" />
+          <h2 className="text-xl font-black tracking-tighter flex items-center gap-2 uppercase">
+            {isOwnProfile ? 'MY PROFILE' : 'USER VIBE'} <Sparkles size={16} className="text-[#1d9bf0] fill-[#1d9bf0]" />
           </h2>
         </div>
-        <button 
-          onClick={() => setIsEditing(!isEditing)}
-          className={`p-2.5 rounded-2xl transition-all duration-300 active:scale-90 cursor-pointer ${isEditing ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-200 dark:border-red-500/20' : 'bg-blue-50 dark:bg-[#1d9bf0]/10 text-[#1d9bf0] border border-blue-100 dark:border-[#1d9bf0]/20'}`}
-        >
-          {isEditing ? <ArrowLeft size={20} /> : <Settings2 size={20} />}
-        </button>
+        {/* Sirf khud ki profile pe Settings/Edit dikhega */}
+        {isOwnProfile && (
+          <button 
+            onClick={() => setIsEditing(!isEditing)}
+            className={`p-2.5 rounded-2xl transition-all duration-300 active:scale-90 cursor-pointer ${isEditing ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-200 dark:border-red-500/20' : 'bg-blue-50 dark:bg-[#1d9bf0]/10 text-[#1d9bf0] border border-blue-100 dark:border-[#1d9bf0]/20'}`}
+          >
+            {isEditing ? <ArrowLeft size={20} /> : <Settings2 size={20} />}
+          </button>
+        )}
       </header>
 
-      {/* 🎨 NEON MESH BANNER */}
+      {/* NEON MESH BANNER */}
       <div className="h-44 md:h-64 bg-gray-200 dark:bg-[#0a0a0a] relative overflow-hidden transition-colors duration-500">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1d9bf0]/20 via-purple-600/10 to-pink-600/20 animate-pulse mix-blend-multiply dark:mix-blend-screen" />
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[80%] bg-[#1d9bf0]/10 rounded-full blur-[120px]" />
       </div>
 
       <div className="max-w-4xl mx-auto px-6 relative -mt-20 md:-mt-28">
-        {/* 👤 AVATAR & EDIT BUTTON */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-tr from-[#1d9bf0] to-purple-500 rounded-[2.5rem] md:rounded-[3rem] blur-2xl opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
             <div className="relative p-1.5 bg-gradient-to-tr from-gray-200 dark:from-white/20 to-transparent rounded-[2.7rem] md:rounded-[3.2rem]">
               <img 
-                src={preview || user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'U'}`} 
+                src={(isOwnProfile && preview) ? preview : (user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'U'}`)} 
                 className="w-32 h-32 md:w-48 md:h-48 rounded-[2.5rem] md:rounded-[3rem] border-4 md:border-8 border-white dark:border-[#050505] z-10 object-cover bg-gray-100 dark:bg-gray-900 shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
                 alt="Avatar"
               />
             </div>
-            {isEditing && (
+            {isEditing && isOwnProfile && (
               <div 
                 onClick={() => fileInputRef.current.click()} 
                 className="absolute inset-1.5 z-20 flex items-center justify-center bg-black/40 dark:bg-black/60 rounded-[2.5rem] md:rounded-[3rem] cursor-pointer backdrop-blur-md transition-all border-4 border-transparent dark:border-black text-white"
@@ -137,14 +152,16 @@ export default function Profile() {
                 <Camera size={32} />
               </div>
             )}
-            <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={(e) => {
-              const file = e.target.files[0];
-              if (file) { setSelectedFile(file); setPreview(URL.createObjectURL(file)); }
-            }} />
+            {isOwnProfile && (
+              <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) { setSelectedFile(file); setPreview(URL.createObjectURL(file)); }
+              }} />
+            )}
           </div>
           
           <div className="flex gap-3 mb-2">
-             {!isEditing && (
+             {!isEditing && isOwnProfile && (
                <button onClick={() => setIsEditing(true)} className="px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-black font-black rounded-2xl hover:bg-gray-800 dark:hover:bg-gray-200 transition active:scale-95 shadow-xl cursor-pointer">
                  Edit Identity
                </button>
@@ -152,7 +169,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {isEditing ? (
+        {isEditing && isOwnProfile ? (
           <form onSubmit={handleUpdate} className="mt-10 animate-in slide-in-from-bottom-8 duration-500">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/5 p-6 rounded-[2rem] shadow-sm dark:shadow-none backdrop-blur-xl transition-colors duration-500">
               <InputField label="Name" value={formData.name} onChange={v => setFormData({...formData, name: v})} placeholder="Full Name" />
@@ -175,7 +192,6 @@ export default function Profile() {
           </form>
         ) : (
           <div className="mt-8 space-y-10 animate-in fade-in duration-700">
-            {/* NAME & BIO */}
             <div>
               <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-none mb-3 text-gray-900 dark:text-white transition-colors duration-500">
                 {String(user?.name || 'Loading...')} <span className="inline-block animate-pulse text-[#1d9bf0]">⚡</span>
@@ -191,7 +207,6 @@ export default function Profile() {
               </p>
             </div>
 
-            {/* 📊 STATS CARDS */}
             <div className="grid grid-cols-4 gap-3">
               <BentoCard icon={<Zap size={20} className="text-[#1d9bf0]" />} count={connections.length} label="Connection" color="blue" />
               <BentoCard icon={<Flame size={20} className="text-orange-500" />} count={user?.streak || 0} label="Streak" color="orange" />
@@ -199,7 +214,6 @@ export default function Profile() {
               <BentoCard icon={<Award size={20} className="text-yellow-500" />} count={user?.badgesCount || 0} label="Badges" color="yellow" />
             </div>
 
-            {/* 📑 TABS SECTION */}
             <div className="space-y-6">
               <div className="flex gap-6 md:gap-8 border-b border-gray-200 dark:border-white/5 transition-colors duration-500">
                 <TabItem active={activeTab === 'skills'} label="Skills" onClick={() => setActiveTab('skills')} />
@@ -209,7 +223,6 @@ export default function Profile() {
 
               <div className="min-h-[200px]">
                 
-                {/* SKILLS TAB */}
                 {activeTab === 'skills' && (
                   <div className="flex flex-wrap gap-3 animate-in zoom-in-95 duration-500">
                     {user?.skills?.length > 0 ? (
@@ -222,15 +235,11 @@ export default function Profile() {
                     ) : (
                       <div className="w-full text-center py-10 bg-gray-50 dark:bg-white/[0.02] rounded-3xl border border-dashed border-gray-300 dark:border-white/10 transition-colors duration-500">
                         <p className="text-gray-500 font-medium mb-3">No skills added yet.</p>
-                        <button onClick={() => setIsEditing(true)} className="px-6 py-2 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 text-gray-900 dark:text-white rounded-full text-sm font-bold transition">
-                          Add Skills +
-                        </button>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* SQUAD TAB */}
                 {activeTab === 'squad' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-left-6 duration-500">
                     {connections.length > 0 ? (
@@ -243,18 +252,20 @@ export default function Profile() {
                               <p className="text-gray-500 font-mono text-xs uppercase tracking-tighter">@{String(c.handle)}</p>
                             </div>
                           </div>
-                          <button onClick={() => handleUnconnect(c._id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer">
-                            <UserMinus size={18} />
-                          </button>
+                          {/* Sirf khud ki profile pe connection remove ka button dikhega */}
+                          {isOwnProfile && (
+                            <button onClick={() => handleUnconnect(c._id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer">
+                              <UserMinus size={18} />
+                            </button>
+                          )}
                         </div>
                       ))
                     ) : (
-                      <p className="col-span-1 md:col-span-2 text-center text-gray-500 font-medium py-10">Your squad is empty. Start connecting! 🌍</p>
+                      <p className="col-span-1 md:col-span-2 text-center text-gray-500 font-medium py-10">Squad is empty. 🌍</p>
                     )}
                   </div>
                 )}
 
-                {/* ABOUT TAB */}
                 {activeTab === 'about' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-500">
                     {user?.batch ? <InfoRow icon={<GraduationCap size={20} />} label="Batch" value={String(user.batch)} /> : null}
@@ -265,7 +276,6 @@ export default function Profile() {
                       </a>
                     ) : null}
 
-                    {/* Interests Block */}
                     <div className="col-span-1 md:col-span-2 bg-white dark:bg-white/[0.02] p-5 rounded-2xl border border-gray-200 dark:border-white/5 mt-2 shadow-sm dark:shadow-none transition-colors duration-500">
                       <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-4 flex items-center gap-2">
                         <Heart size={14} className="text-pink-500" /> Interests
@@ -293,8 +303,7 @@ export default function Profile() {
   );
 }
 
-// --- HELPER COMPONENTS ---
-
+// Helper Components
 const BentoCard = ({ icon, count, label, color }) => {
   const glows = {
     blue: 'hover:border-[#1d9bf0] dark:hover:border-[#1d9bf0]/30 hover:shadow-[0_0_20px_rgba(29,155,240,0.15)]',

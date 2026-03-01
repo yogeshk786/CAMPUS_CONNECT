@@ -6,7 +6,7 @@ const imagekit = require("../config/imagekit");
 // ==========================================
 const updateProfile = async (req, res) => {
     try {
-        const { name, handle, batch, github, skills, interests } = req.body;
+        const { name, handle, batch, github, skills, interests, bio } = req.body;
         const userId = req.user._id;
         
         // Comma-separated strings ko arrays mein badle, empty aane par safe rahe
@@ -19,6 +19,7 @@ const updateProfile = async (req, res) => {
             handle, 
             batch,
             github,
+            bio,
             skills: parsedSkills,
             interests: parsedInterests
         };
@@ -76,7 +77,7 @@ const unconnectUser = async (req, res) => {
 };
 
 // ==========================================
-// 3. GET USER PROFILE (With Full Population)
+// 3. GET USER PROFILE (Logged-in user)
 // ==========================================
 const getUserProfile = async (req, res) => {
     try {
@@ -97,7 +98,33 @@ const getUserProfile = async (req, res) => {
 };
 
 // ==========================================
-// 4. SEND CONNECTION REQUEST
+// 4. GET OTHER USER PROFILE (By ID)
+// ==========================================
+const getOtherUserProfile = async (req, res) => {
+    try {
+        const targetId = req.params.id;
+        
+        const user = await User.findById(targetId)
+            .select('-password')
+            .populate('connections', 'name handle avatar role dept batch skills');
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json(user);
+    } catch (error) {
+        console.error("Fetch Other Profile Error:", error.message);
+        // Agar Invalid ID aati hai toh crash hone se bachaye
+        if (error.kind === 'ObjectId') {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// ==========================================
+// 5. SEND CONNECTION REQUEST
 // ==========================================
 const sendConnectionRequest = async (req, res) => {
     try {
@@ -108,8 +135,13 @@ const sendConnectionRequest = async (req, res) => {
             return res.status(400).json({ message: "You cannot connect with yourself" });
         }
 
+        // Dono users ka Asli Database Document fetch karna zaroori hai
         const targetUser = await User.findById(targetUserId);
-        if (!targetUser) return res.status(404).json({ message: "User not found" });
+        const currentUser = await User.findById(currentUserId); 
+
+        if (!targetUser || !currentUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
         // Check if already connected or request pending
         if (targetUser.connections.includes(currentUserId)) {
@@ -118,9 +150,13 @@ const sendConnectionRequest = async (req, res) => {
         if (targetUser.pendingRequests.includes(currentUserId)) {
             return res.status(400).json({ message: "Request already sent" });
         }
-
+        
+        // Target ke pendingRequests me daalo, aur Current ke sentRequests me daalo
         targetUser.pendingRequests.push(currentUserId);
+        currentUser.sentRequests.push(targetUserId); 
+        
         await targetUser.save();
+        await currentUser.save(); 
 
         res.status(200).json({ message: "Connection request sent!" });
     } catch (error) {
@@ -130,13 +166,14 @@ const sendConnectionRequest = async (req, res) => {
 };
 
 // ==========================================
-// 5. ACCEPT CONNECTION REQUEST
+// 6. ACCEPT CONNECTION REQUEST
 // ==========================================
 const acceptConnectionRequest = async (req, res) => {
     try {
         const requesterId = req.params.id; 
         const currentUserId = req.user._id;
 
+        // Dono users ko fetch karo
         const currentUser = await User.findById(currentUserId);
         const requesterUser = await User.findById(requesterId);
 
@@ -146,14 +183,18 @@ const acceptConnectionRequest = async (req, res) => {
 
         // Move from pending to connections
         currentUser.pendingRequests = currentUser.pendingRequests.filter(
-            (id) => id.toString() !== requesterId
+            (id) => id.toString() !== requesterId.toString()
         );
-
         currentUser.connections.push(requesterId);
-        requesterUser.connections.push(currentUserId);
-
         await currentUser.save();
-        await requesterUser.save();
+
+        if(requesterUser) {
+            requesterUser.sentRequests = requesterUser.sentRequests.filter(
+                (id) => id.toString() !== currentUserId.toString()
+            );
+            requesterUser.connections.push(currentUserId);
+            await requesterUser.save(); 
+        }
 
         res.status(200).json({ message: "Request accepted!" });
     } catch (error) {
@@ -163,23 +204,34 @@ const acceptConnectionRequest = async (req, res) => {
 };
 
 // ==========================================
-// 6. REJECT CONNECTION REQUEST
+// 7. REJECT CONNECTION REQUEST
 // ==========================================
 const rejectConnectionRequest = async (req, res) => {
     try {
         const requesterId = req.params.id; 
         const currentUserId = req.user._id;         
 
+        // Dono users ko fetch karo
         const currentUser = await User.findById(currentUserId);
+        const requesterUser = await User.findById(requesterId); 
 
         if (!currentUser.pendingRequests.includes(requesterId)) {
             return res.status(400).json({ message: "No pending request" });
         }                      
 
+        // Apni list se hataya
         currentUser.pendingRequests = currentUser.pendingRequests.filter(
-            (id) => id.toString() !== requesterId
+            (id) => id.toString() !== requesterId.toString()
         );  
         await currentUser.save();
+        
+        // Requester ki sent list se bhi hataya
+        if (requesterUser) {
+            requesterUser.sentRequests = requesterUser.sentRequests.filter(
+                (id) => id.toString() !== currentUserId.toString()
+            );
+            await requesterUser.save();
+        }
         
         res.status(200).json({ message: "Request rejected!" });
     } catch (error) {
@@ -192,6 +244,7 @@ module.exports = {
     updateProfile,
     unconnectUser,
     getUserProfile,
+    getOtherUserProfile,
     sendConnectionRequest,
     acceptConnectionRequest,
     rejectConnectionRequest

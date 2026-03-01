@@ -77,7 +77,8 @@ const userSchema = new mongoose.Schema({
     pendingRequests: [{ 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User' 
-    }]
+    }] ,
+    sentRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 
 }, { timestamps: true });
 

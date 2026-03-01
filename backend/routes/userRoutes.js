@@ -4,12 +4,13 @@ const router = express.Router();
 // 🛡️ Middlewares
 const { protect } = require('../middlewares/authMiddleware');   
 
-// 👉 1. THE FIX: Multer ko UNCOMMENT kar diya hai
+// 👉 Upload Middleware
 const upload = require('../middlewares/uploadMiddleware'); 
 
 // 🎮 Controllers
 const { 
     getUserProfile,
+    getOtherUserProfile, // 👉 ADDED: Naya controller import kiya
     updateProfile,
     sendConnectionRequest, 
     acceptConnectionRequest, 
@@ -23,7 +24,10 @@ const {
 // Get current logged-in user's profile
 router.get('/profile', protect, getUserProfile);
 
-// 👉 2. THE FIX: Update route par upload.single('avatar') laga diya hai
+// 👉 ADDED: Get OTHER user's profile by their ID (Ye naya route add kiya hai)
+router.get('/:id', protect, getOtherUserProfile);
+
+// Update route par upload.single('avatar') laga diya hai
 router.put('/update', protect, upload.single('avatar'), updateProfile); 
 
 // ==========================================
