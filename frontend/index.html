@@ -4,7 +4,32 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>Campus GenZ</title>
+    
+    <!-- 👉 1. THEME CHECKER SCRIPT (Yeh batayega HTML ko ki theme kya hai) -->
+    <script>
+      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
+
+    <!-- 👉 2. THE ULTIMATE FIX: INSTANT BACKGROUND CSS -->
+    <!-- Yeh React ke aane se pehle hi screen ko Dark/Light kar dega -->
+    <style>
+      /* Light Mode Default Background (bg-gray-50) */
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f9fafb;
+      }
+      
+      /* Dark Mode Instant Background (bg-[#050505]) */
+      html.dark body {
+        background-color: #050505;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
