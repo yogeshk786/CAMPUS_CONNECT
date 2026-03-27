@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-// 👉 IMPORT Google Provider
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import API from './api/axios'; 
@@ -20,15 +19,24 @@ const ProtectedLayout = ({ children, user, onLogout, isDarkMode, toggleTheme }) 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-white flex justify-center overflow-x-hidden transition-colors duration-500 relative">
       <div className="w-full max-w-[1265px] flex justify-between">
-        <div className="w-[80px] xl:w-[275px]">
+        
+        {/* 👉 FIX: Added 'flex-shrink-0' and matched width to 280px. 
+            Ye div ab ek "Spacer" ka kaam karega kyunki andar wala Sidebar fixed hai.
+        */}
+        <div className="w-[80px] xl:w-[280px] flex-shrink-0">
           <Sidebar user={user} onLogout={onLogout} />
         </div>
+
+        {/* Main Feed Content */}
         <main className="w-full max-w-[600px] border-x border-gray-200 dark:border-white/10 min-h-screen transition-colors duration-500 relative z-10 pb-[80px] md:pb-0">
           {children}
         </main>
-        <div className="hidden lg:block w-[350px] pl-8 py-3">
+
+        {/* Right Sidebar Wrapper */}
+        <div className="hidden lg:block w-[350px] pl-8 py-3 flex-shrink-0">
           <RightSidebar isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
         </div>
+        
       </div>
       <LiveChat />
     </div>
@@ -111,14 +119,11 @@ function App() {
     };
   }, []); 
 
-  // 👉 UPDATED: Handle Google & Regular Auth Success
   const handleAuthSuccess = (userData) => {
-    // If the child component (Landing) sends the data directly, save it
     if (userData) {
       localStorage.setItem('userInfo', JSON.stringify(userData));
       setCurrentUser(userData.user ? userData.user : userData);
     } else {
-      // Fallback for modal which might just trigger a refresh
       const storedData = localStorage.getItem('userInfo');
       if (storedData) {
         const parsedData = JSON.parse(storedData);
@@ -128,7 +133,6 @@ function App() {
   };
 
   return (
-    // 👉 WRAP: Put your Client ID here
     <GoogleOAuthProvider clientId="858783026152-k8q7n8dqeckg5p4hodfaahsk0mut7llj.apps.googleusercontent.com">
       <UserProvider>
         <Router>
