@@ -1,7 +1,12 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { OAuth2Client } = require('google-auth-library');
 
+// Initialize Google OAuth Client
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Helper to generate JWT
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
         expiresIn: '30d',
@@ -9,11 +14,79 @@ const generateToken = (id) => {
 };
 
 // ==========================================
-// REGISTER USER
+// GOOGLE LOGIN / REGISTER (Social Auth)
+// ==========================================
+const googleLogin = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+
+        if (!idToken) {
+            return res.status(400).json({ message: "Google ID Token is required" });
+        }
+
+        // 1. Verify the ID Token with Google
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        const { email, name, picture, sub } = payload; // 'sub' is the unique Google ID
+
+        // 2. Check if user already exists
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            // 3. Create new user if they don't exist
+            // We generate a random handle based on their Google ID
+            const generatedHandle = `user_${sub.substring(0, 6)}`;
+            
+            // Generate a random password since field is likely required in Model
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(Math.random().toString(36), salt);
+
+            user = await User.create({
+                name,
+                email,
+                handle: generatedHandle,
+                avatar: picture,
+                password: hashedPassword,
+                role: 'student' // Default role
+            });
+            console.log("🆕 New User created via Google:", user.email);
+        }
+
+        // 4. Create our app's JWT
+        const token = generateToken(user._id);
+
+        // 5. Send Cookie
+        res.cookie('jwt', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
+
+        res.status(200).json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            handle: user.handle,
+            role: user.role,
+            avatar: user.avatar
+        });
+
+    } catch (error) {
+        console.error("❌ Google Auth Error:", error.message);
+        res.status(401).json({ message: "Invalid Google Token" });
+    }
+};
+
+// ==========================================
+// REGISTER USER (Email/Password)
 // ==========================================
 const registerUser = async (req, res) => {
     try {
-        // 👉 FIX 1: Frontend se avatar bhi accept karein
         const { name, email, password, handle, role, avatar } = req.body; 
 
         const userExists = await User.findOne({ $or: [{ email }, { handle }] });
@@ -29,7 +102,7 @@ const registerUser = async (req, res) => {
             email,
             password: hashedPassword,
             handle,
-            avatar, // 👉 FIX 2: Database mein avatar save karein
+            avatar,
             role: role || 'student'
         });
 
@@ -48,7 +121,7 @@ const registerUser = async (req, res) => {
             email: user.email,
             handle: user.handle,
             role: user.role,
-            avatar: user.avatar // 👉 FIX 3: Frontend ko photo bhejein
+            avatar: user.avatar
         });
 
     } catch (error) {
@@ -58,22 +131,18 @@ const registerUser = async (req, res) => {
 };
 
 // ==========================================
-// LOGIN USER
+// LOGIN USER (Email/Password)
 // ==========================================
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body; 
         const cleanEmail = email.trim();
         const cleanPassword = password.trim();
-
-        console.log("🚀 LOGIN ATTEMPT - Email:", cleanEmail, "| Password:", cleanPassword);
         
         const user = await User.findOne({ email: cleanEmail });
-        console.log("🕵️ USER FOUND IN DB:", user ? "YES! Name: " + user.name : "NO USER FOUND!");
 
         if (user) {
             const isMatch = await bcrypt.compare(cleanPassword, user.password);
-            console.log("🔑 PASSWORD MATCH RESULT:", isMatch);
 
             if (isMatch) {
                 const token = generateToken(user._id);
@@ -91,7 +160,7 @@ const loginUser = async (req, res) => {
                     email: user.email,
                     handle: user.handle,
                     role: user.role,
-                    avatar: user.avatar // 👉 THE ULTIMATE FIX: Login ke waqt photo bhejein!
+                    avatar: user.avatar
                 });
             }
         }
@@ -104,6 +173,9 @@ const loginUser = async (req, res) => {
     }
 };
 
+// ==========================================
+// LOGOUT USER
+// ==========================================
 const logoutUser = (req, res) => {
     res.cookie('jwt', '', {
         httpOnly: true,
@@ -113,4 +185,4 @@ const logoutUser = (req, res) => {
     res.status(200).json({ message: 'Logged out successfully' });
 };
 
-module.exports = { registerUser, loginUser, logoutUser };
+module.exports = { registerUser, loginUser, logoutUser, googleLogin };
