@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'; 
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
+import { useUser } from '../contexts/UserContext';
 
 // 🛠️ API HELPER INLINED (Canvas environment ke liye)
 const API = axios.create({

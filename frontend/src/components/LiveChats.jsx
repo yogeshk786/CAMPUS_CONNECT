@@ -94,7 +94,7 @@ export default function LiveChat() {
       }
     });
     return unique;
-  }, [user, user?.connections]);
+  }, [user]);
 
   const sortedFriends = useMemo(() => {
     const friendsList = [...uniqueFriends];

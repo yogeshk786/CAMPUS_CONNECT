@@ -15,6 +15,30 @@ export default function RightSidebar({ isDarkMode, toggleTheme }) {
       {/* 🔍 Search Bar (Aapka original component) */}
       <SearchBar />
 
+      {/* 🌗 THEME TOGGLE WIDGET */}
+      <div className="bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-white/10 rounded-[2rem] p-5 shadow-sm dark:shadow-[0_0_30px_rgba(255,255,255,0.02)] transition-colors duration-500 mt-6">
+        <h3 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-900 dark:text-white transition-colors duration-500">
+          Vibe Settings <Sparkles size={18} className="text-[#1d9bf0]" />
+        </h3>
+
+        <div className="flex items-center justify-between bg-gray-50 dark:bg-white/[0.03] p-4 rounded-2xl border border-gray-200 dark:border-white/5 transition-colors duration-500">
+          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+            {isDarkMode ? <Moon size={20} className="text-indigo-500 animate-in spin-in" /> : <Sun size={20} className="text-orange-500 animate-in spin-in" />}
+            <span className="font-bold">{isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
+          </div>
+          
+          {/* Custom Animated Toggle Switch */}
+          <button 
+            onClick={toggleTheme}
+            className={`relative w-14 h-8 rounded-full transition-colors duration-300 outline-none cursor-pointer shadow-inner ${isDarkMode ? 'bg-[#1d9bf0]' : 'bg-gray-300'}`}
+          >
+            <div 
+              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 flex items-center justify-center ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}
+            ></div>
+          </button>
+        </div>
+      </div>
+
       {/* 🤝 SUGGESTED CONNECTIONS WIDGET */}
       <div className="bg-white dark:bg-[#0a0a0a] rounded-[2rem] border border-gray-200 dark:border-white/10 pt-5 mt-4 shadow-sm dark:shadow-[0_0_30px_rgba(255,255,255,0.02)] transition-colors duration-500 overflow-hidden">
         <h3 className="text-lg font-black px-5 mb-4 text-gray-900 dark:text-white flex items-center gap-2">
@@ -49,7 +73,7 @@ export default function RightSidebar({ isDarkMode, toggleTheme }) {
 
         {/* Show More Footer */}
         <div className="p-5 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors duration-300 cursor-pointer rounded-b-[2rem] border-t border-gray-100 dark:border-white/5">
-          <span className="text-[#1d9bf0] font-bold text-[15px] hover:underline">zizz</span>
+          <span className="text-[#1d9bf0] font-bold text-[15px] hover:underline">Show more</span>
         </div>
       </div>
 

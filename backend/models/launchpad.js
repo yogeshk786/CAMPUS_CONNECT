@@ -25,6 +25,10 @@ const launchpadSchema = new mongoose.Schema({
         enum: ['Web', 'AI', 'Hardware', 'Web3', 'Design', 'Other'],
         default: 'Web'
     },
+
+  
+
+
     
     // 🚩 THE SQUAD LOGIC
     // Array of users with their roles. Populate() use karke inka avatar aur name mil jayega.
@@ -72,7 +76,33 @@ const launchpadSchema = new mongoose.Schema({
     hiring: { 
         type: String, 
         default: "" // e.g. "Looking for a Mobile Developer"
-    }
+    } ,
+    
+    pitches: [{
+        user:{
+            type: mongoose.Schema.Types.ObjectId ,
+            ref: 'User' ,
+
+            required : true 
+
+        },
+
+        message: {
+            type : String ,
+            required : true
+        },
+        status:{
+            type: String ,
+            enum : ['pending' , 'accepted' , 'rejected'],
+            default: "pending"
+        },
+        createdAt: {
+            type : Date ,
+            default : Date.now
+        }
+
+        
+    }]
 
 }, { 
     timestamps: true // Isse 'createdAt' aur 'updatedAt' apne aap ban jayenge

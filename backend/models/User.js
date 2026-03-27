@@ -8,36 +8,46 @@ const userSchema = new mongoose.Schema({
     email: { 
         type: String, 
         required: true, 
-        unique: true 
+        unique: true,
+        lowercase: true 
     },
+    // 👉 CHANGE: Required false for Google Auth compatibility
     password: { 
         type: String, 
-        required: true 
+        required: function() {
+            return !this.googleId; // Agar googleId nahi hai, toh password zaroori hai
+        }
     },
     googleId: { 
         type: String, 
-        required: false 
-    },
-    avatar: { 
-        type: String,
-        default: '' // 👉 Good practice: Default empty string rakhein
-    },
-    // 👉 NAYA FIELD: 3D model link save karne ke liye!
-    avatar3D: { 
-        type: String, 
-        default: '' 
+        unique: true, 
+        sparse: true // Taaki null values duplicate error na dein
     },
     handle: { 
         type: String, 
         required: true, 
         unique: true,
-        lowercase: true, // 👉 Good practice: Handle hamesha lowercase mein rakhein
-        trim: true       // 👉 Spaces hata dega
+        lowercase: true,
+        trim: true,
+        index: true // 👉 Faster profile lookups
+    },
+    avatar: { 
+        type: String,
+        default: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix' 
+    },
+    avatar3D: { 
+        type: String, 
+        default: '' 
     },
     role: {
         type: String,
         enum: ['student', 'alumni', 'admin'],
         default: 'student'
+    },
+    // 👉 NEW: Headline (Jaise LinkedIn par hota hai)
+    headline: {
+        type: String,
+        default: 'Campus Connect Member'
     },
     bio: { 
         type: String, 
@@ -47,6 +57,11 @@ const userSchema = new mongoose.Schema({
         type: String 
     },
     batch: { 
+        type: String, 
+        default: "" 
+    },
+    // 👉 NEW: Portfolio/Website link
+    website: { 
         type: String, 
         default: "" 
     },
@@ -63,33 +78,19 @@ const userSchema = new mongoose.Schema({
         default: [] 
     },
 
-    // 🚀 GENZ STATS (FOR GAMIFIED EXPERIENCE)
-    streak: { 
-        type: Number, 
-        default: 0 
+    // 🚀 GENZ STATS
+    vTokens: { // 👉 V-Tokens balance for Launchpad/Confessions
+        type: Number,
+        default: 1000 
     },
-    hearts: { 
-        type: Number, 
-        default: 0 
-    },
-    badgesCount: { 
-        type: Number, 
-        default: 0 
-    },
+    streak: { type: Number, default: 0 },
+    hearts: { type: Number, default: 0 },
+    badgesCount: { type: Number, default: 0 },
 
-    // 🌐 NETWORKING & CONNECTIONS
-    connections: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' 
-    }],
-    pendingRequests: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' 
-    }],
-    sentRequests: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' 
-    }]
+    // 🌐 NETWORKING
+    connections: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    pendingRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    sentRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 
 }, { timestamps: true });
 
