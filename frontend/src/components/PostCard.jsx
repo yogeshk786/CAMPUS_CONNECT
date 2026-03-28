@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { 
   MessageCircle, Heart, Share, MoreHorizontal, Sparkles, Send, 
-  CheckCircle2, Clock, UserPlus, Loader2 
+  CheckCircle2, Clock, UserPlus, Loader2, Trash2 // 📝 1. Added Trash2 import
 } from 'lucide-react'; 
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
-import { useUser } from '../contexts/UserContext';
 
-// 🛠️ API HELPER INLINED (Canvas environment ke liye)
+// 🛠️ API HELPER INLINED
 const API = axios.create({
   baseURL: 'http://localhost:5000/api', 
   withCredentials: true
@@ -15,9 +14,9 @@ const API = axios.create({
 
 // 🛠️ COMPACT CONNECT BUTTON INLINED
 function CompactConnectButton({ targetUserId, isConnected, initialIsPending }) {
+  // ... (Your existing CompactConnectButton code remains exactly the same) ...
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState('');
-  
   const [optimisticPending, setOptimisticPending] = useState(false);
   const [optimisticConnected, setOptimisticConnected] = useState(false);
 
@@ -97,7 +96,8 @@ function CompactConnectButton({ targetUserId, isConnected, initialIsPending }) {
 }
 
 // 📄 POST CARD MAIN COMPONENT
-export default function PostCard({ post, currentUser }) {
+// 📝 2. Added onDelete prop here
+export default function PostCard({ post, currentUser, onDelete }) {
   const navigate = useNavigate(); 
 
   const [likes, setLikes] = useState(post.likes || []);
@@ -106,6 +106,10 @@ export default function PostCard({ post, currentUser }) {
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
+  
+  // 📝 3. Added State for Deletion and Menu Toggle
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const myId = String(currentUser?._id || '');
   const postUserId = typeof post.user === 'object' ? String(post.user?._id) : String(post.user);
@@ -172,8 +176,62 @@ export default function PostCard({ post, currentUser }) {
     }
   };
 
+  // 📝 4. Added handleDelete function
+  const handleDelete = async (e) => {
+    e.stopPropagation(); 
+    if (!window.confirm("Are you sure you want to delete this post?")) {
+      setIsMenuOpen(false); // Close menu if they cancel
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await API.delete(`/posts/${post._id}`);
+      if (onDelete) {
+        onDelete(post._id); 
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert(err.response?.data?.message || "Failed to delete post.");
+      setIsDeleting(false);
+    }
+  };
+    
+    const handleShare = async (e) => {
+      e.stopPropagation() ;
+
+     
+      const postUrl = `${window.location.origin}/post/${post._id}` ;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title:`post by ${post.user?.name}` ,
+            text : 'check out my new post on campus connect!' ,
+            url : postUrl ,
+          });
+        }catch(error) {
+          console.log('user cancelled share or error :' , error) ;
+        }
+
+      } else {
+
+        try {
+          await navigator.clipboard.writeText(postUrl) ;
+          alert("link copied to clipboard!");
+
+        }catch (err) {
+          console.error('failed to copy post' , err) ;
+        }
+      }
+    };
+
+  // 📝 SDE Note: Added onClick listener to close menu if user clicks anywhere else on the card
   return (
-    <div className="bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-white/5 p-5 md:p-6 rounded-[2rem] shadow-sm hover:shadow-md dark:shadow-none dark:hover:border-white/10 transition-all duration-300 group mb-4">
+    <div 
+      onClick={() => setIsMenuOpen(false)} 
+      className="bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-white/5 p-5 md:p-6 rounded-[2rem] shadow-sm hover:shadow-md dark:shadow-none dark:hover:border-white/10 transition-all duration-300 group mb-4"
+    >
       <div className="flex gap-3 md:gap-4 w-full">
         
         <div 
@@ -222,9 +280,36 @@ export default function PostCard({ post, currentUser }) {
               )}
             </div>
             
-            <div className="text-gray-400 hover:text-[#1d9bf0] transition p-2 hover:bg-blue-50 dark:hover:bg-[#1d9bf0]/10 rounded-full cursor-pointer">
-              <MoreHorizontal size={18} />
+            {/* 📝 5. Replaced the single MoreHorizontal icon with the new Dropdown Menu */}
+            <div className="relative">
+              <div 
+                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+                className="text-gray-400 hover:text-[#1d9bf0] transition p-2 hover:bg-blue-50 dark:hover:bg-[#1d9bf0]/10 rounded-full cursor-pointer"
+              >
+                <MoreHorizontal size={18} />
+              </div>
+
+              {/* Dropdown UI */}
+              {isMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#16181c] border border-gray-100 dark:border-gray-800 rounded-xl shadow-lg overflow-hidden z-20 animate-in fade-in slide-in-from-top-2">
+                  {isMyPost ? (
+                    <button 
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-[14px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+                    >
+                      {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                      Delete
+                    </button>
+                  ) : (
+                    <button className="w-full flex items-center gap-2 px-4 py-3 text-[14px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left">
+                      Report Post
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
+
           </div>
           
           <p className="mt-2 text-lg md:text-[17px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words font-medium">
@@ -254,9 +339,17 @@ export default function PostCard({ post, currentUser }) {
               </div>
               <span className={`text-[14px] font-bold px-1 transition-colors ${isLikedByMe ? '' : 'group-hover:text-[#f91880]'}`}>{likes.length}</span>
             </button>
-
-            <div className="flex items-center group transition cursor-pointer">
-              <div className="p-2.5 group-hover:bg-green-50 dark:group-hover:bg-[#00ba7c]/10 group-hover:text-[#00ba7c] rounded-full transition-colors"><Share size={20} /></div>
+          
+          <div
+            onClick = {handleShare}
+            
+            
+            className="flex items-center group transition cursor-pointer">
+             
+              <div className="p-2.5 group-hover:bg-green-50 dark:group-hover:bg-[#00ba7c]/10 group-hover:text-[#00ba7c] rounded-full transition-colors"><Share size={20} />
+              
+              </div>
+                
             </div>
           </div>
         </div>
