@@ -12,24 +12,24 @@ export default function Feed({ user }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // 👉 Theme State (LocalStorage se check karega pehle)
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark' || 
-        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    }
-    return true; // Default dark
-  });
+  // const [isDarkMode, setIsDarkMode] = useState(() => {
+  //   if (typeof window !== 'undefined') {
+  //     return localStorage.getItem('theme') === 'dark' || 
+  //       (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  //   }
+  //   return true; // Default dark
+  // });
 
-  // 👉 Theme Toggle Effect
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDarkMode]);
+  // // 👉 Theme Toggle Effect
+  // useEffect(() => {
+  //   if (isDarkMode) {
+  //     document.documentElement.classList.add('dark');
+  //     localStorage.setItem('theme', 'dark');
+  //   } else {
+  //     document.documentElement.classList.remove('dark');
+  //     localStorage.setItem('theme', 'light');
+  //   }
+  // }, [isDarkMode]);
 
   // 👉 Fetch Posts Logic
   const fetchPosts = useCallback(async () => {
@@ -53,7 +53,11 @@ export default function Feed({ user }) {
     fetchPosts();
   };
 
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+  const handleRemovePost = (deletedPostId) => {
+    setPosts((currentPosts) => currentPosts.filter(post => post._id !== deletedPostId));
+  };
+
+  //const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   return (
     // 👉 ADDED: dark:bg-[#050505] aur light mode colors
@@ -71,14 +75,7 @@ export default function Feed({ user }) {
         
         <div className="flex items-center gap-3">
           {/* 🌓 Dark/Light Mode Toggle Button */}
-          <button 
-            onClick={toggleTheme}
-            className="p-2.5 bg-gray-100 dark:bg-white/[0.03] hover:bg-gray-200 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/5 rounded-2xl transition-all duration-300 active:scale-90 cursor-pointer shadow-sm dark:shadow-lg hover:shadow-md dark:hover:shadow-[0_0_15px_rgba(255,255,255,0.05)] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white relative overflow-hidden group"
-          >
-            <div className="relative z-10 flex items-center justify-center transition-transform duration-500">
-              {isDarkMode ? <Sun size={20} className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-in spin-in duration-500" /> : <Moon size={20} className="text-indigo-500 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)] animate-in spin-in duration-500" />}
-            </div>
-          </button>
+          
 
           {/* 🔄 Refresh Button */}
           <button 
@@ -137,6 +134,7 @@ export default function Feed({ user }) {
                 <PostCard 
                   post={post} 
                   currentUser={user} 
+                  onDelete={handleRemovePost}
                 />
               </div>
             ))}
