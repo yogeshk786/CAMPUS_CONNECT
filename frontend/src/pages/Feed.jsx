@@ -46,6 +46,8 @@ export default function Feed({ user }) {
 
   useEffect(() => {
     fetchPosts();
+    const pollingInterval = setInterval(fetchPosts, 10000); // Har 30 seconds me refresh karega
+    return () => clearInterval(pollingInterval); // Cleanup on unmount
   }, [fetchPosts]);
 
   const handleRefresh = () => {
@@ -94,7 +96,7 @@ export default function Feed({ user }) {
         <div className="mb-6">
           <CreatePost 
             user={user} 
-            onPostCreated={(newPost) => setPosts([newPost, ...posts])} 
+            onPostCreated={(newPost) => setPosts(prevPosts => [newPost, ...prevPosts])} 
           />
         </div>
 

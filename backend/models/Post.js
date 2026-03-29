@@ -14,7 +14,13 @@ const postSchema = new mongoose.Schema({
     },
     // Image and video urls
     image: {
-      type: String,
+      url:{
+        type: String,
+      },
+      fileId : {
+        type : String 
+      }
+      
     },
     video: {
       type: String,
@@ -38,6 +44,12 @@ const postSchema = new mongoose.Schema({
         date: {
             type: Date,
             default: Date.now
+        },
+
+        deletedAt: {
+
+          type: Date,
+          default: null
         }
     }]
 }, { timestamps: true }); // Gives us createdAt and updatedAt automatically!

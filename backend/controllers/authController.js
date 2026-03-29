@@ -2,6 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { OAuth2Client } = require('google-auth-library');
+const redisClient = require('../config/redis');
 
 // Initialize Google OAuth Client
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -23,14 +24,14 @@ const generateToken = (id) => {
 const setTokenCookie = (res, token) => {
     res.cookie('jwt', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // Use secure in production
+        secure: process.env.NODE_ENV === 'production', 
         sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        maxAge: 30 * 24 * 60 * 60 * 1000, 
     });
 };
 
 // ==========================================
-// 🌐 GOOGLE LOGIN / REGISTER (Social Auth)
+// 🌐 GOOGLE LOGIN / REGISTER (Social Auth + Redis)
 // ==========================================
 const googleLogin = async (req, res) => {
     try {
@@ -40,7 +41,6 @@ const googleLogin = async (req, res) => {
             return res.status(400).json({ message: "Google ID Token is required" });
         }
 
-        // 1. Verify the ID Token with Google
         const ticket = await client.verifyIdToken({
             idToken,
             audience: process.env.GOOGLE_CLIENT_ID,
@@ -49,12 +49,10 @@ const googleLogin = async (req, res) => {
         const payload = ticket.getPayload();
         const { email, name, picture, sub } = payload; 
 
-        // 2. Check if user already exists (by email or googleId)
+        // 1. Get base user without populating yet (to save DB effort if cached)
         let user = await User.findOne({ $or: [{ email }, { googleId: sub }] });
 
         if (!user) {
-            // 3. Create new user if they don't exist
-            // Generate a unique handle from email (e.g., "john.doe@gmail.com" -> "johndoe_482")
             const baseHandle = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
             const uniqueHandle = `${baseHandle}_${Math.floor(100 + Math.random() * 899)}`;
 
@@ -64,32 +62,57 @@ const googleLogin = async (req, res) => {
                 handle: uniqueHandle,
                 avatar: picture,
                 googleId: sub,
-                role: 'student', // Default role
-                vTokens: 1000   // New user bonus
+                role: 'student', 
+                vTokens: 1000   
             });
             console.log("🆕 New User onboarded via Google:", user.handle);
-        } else {
-            // If user exists but googleId wasn't linked yet, link it
-            if (!user.googleId) {
-                user.googleId = sub;
-                if (!user.avatar) user.avatar = picture;
-                await user.save();
-            }
+        } else if (!user.googleId) {
+            user.googleId = sub;
+            if (!user.avatar) user.avatar = picture;
+            await user.save();
         }
 
-        // 4. Auth success - Generate Token & Send Cookie
         const token = generateToken(user._id);
         setTokenCookie(res, token);
+        const cacheKey = `user_profile:${user._id}`;
 
-        res.status(200).json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            handle: user.handle,
-            role: user.role,
-            avatar: user.avatar,
-            vTokens: user.vTokens
-        });
+        // ⚡ 2. REDIS: Check Cache First
+        try {
+            const cachedProfile = await redisClient.get(cacheKey);
+            if (cachedProfile) {
+                console.log("⚡ CACHE HIT (Google): Serving profile from Redis RAM!");
+                return res.status(200).json({ ...JSON.parse(cachedProfile), token });
+            }
+        } catch (cacheErr) {
+            console.error("Redis read error:", cacheErr);
+        }
+
+        // 🐢 3. CACHE MISS: Query MongoDB and Populate
+        console.log("🐢 CACHE MISS (Google): Querying MongoDB and Populating...");
+        const populatedUser = await User.findById(user._id)
+            .populate('connections', '_id name avatar handle')
+            .populate('sentRequests', '_id name handle');
+
+        const profileData = {
+            _id: populatedUser._id,
+            name: populatedUser.name,
+            email: populatedUser.email,
+            handle: populatedUser.handle,
+            role: populatedUser.role,
+            avatar: populatedUser.avatar,
+            vTokens: populatedUser.vTokens,
+            connections: populatedUser.connections || [],
+            sentRequests: populatedUser.sentRequests || []
+        };
+
+        // 💾 4. Save to Redis for next time! (Expires in 1 hour)
+        try {
+            await redisClient.setEx(cacheKey, 3600, JSON.stringify(profileData));
+        } catch (cacheErr) {
+            console.error("Redis write error:", cacheErr);
+        }
+
+        return res.status(200).json({ ...profileData, token });
 
     } catch (error) {
         console.error("❌ Google Auth Error:", error.message);
@@ -104,27 +127,23 @@ const registerUser = async (req, res) => {
     try {
         const { name, email, password, handle, role } = req.body; 
 
-        // 1. Validation check for existing email/handle
         const userExists = await User.findOne({ $or: [{ email }, { handle }] });
         if (userExists) {
             return res.status(400).json({ message: 'User with this email or handle already exists' });
         }
 
-        // 2. Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 3. Create User
         const user = await User.create({
             name,
             email,
             password: hashedPassword,
             handle: handle.toLowerCase().trim(),
             role: role || 'student',
-            vTokens: 500 // Joining bonus for manual register
+            vTokens: 500 
         });
 
-        // 4. Set Token
         const token = generateToken(user._id);
         setTokenCookie(res, token);
 
@@ -135,7 +154,9 @@ const registerUser = async (req, res) => {
             handle: user.handle,
             role: user.role,
             avatar: user.avatar,
-            vTokens: user.vTokens
+            vTokens: user.vTokens,
+            connections: [],
+            sentRequests: []
         });
 
     } catch (error) {
@@ -145,32 +166,61 @@ const registerUser = async (req, res) => {
 };
 
 // ==========================================
-// 🔑 LOGIN USER (Manual Email/Password)
+// 🔑 LOGIN USER (Manual Email/Password + Redis)
 // ==========================================
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body; 
         
-        // Find user by email
-        const user = await User.findOne({ email: email.trim().toLowerCase() });
+        // 1. Find basic user to check password
+        const baseUser = await User.findOne({ email: email.trim().toLowerCase() });
 
-        if (user && user.password) {
-            // Verify Password
-            const isMatch = await bcrypt.compare(password, user.password);
+        if (baseUser && baseUser.password) {
+            const isMatch = await bcrypt.compare(password, baseUser.password);
 
             if (isMatch) {
-                const token = generateToken(user._id);
+                const token = generateToken(baseUser._id);
                 setTokenCookie(res, token);
+                
+                const cacheKey = `user_profile:${baseUser._id}`;
 
-                return res.status(200).json({
-                    _id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    handle: user.handle,
-                    role: user.role,
-                    avatar: user.avatar,
-                    vTokens: user.vTokens
-                });
+                // ⚡ 2. REDIS: Check Cache First
+                try {
+                    const cachedProfile = await redisClient.get(cacheKey);
+                    if (cachedProfile) {
+                        console.log("⚡ CACHE HIT (Login): Serving profile from Redis RAM in 2ms!");
+                        return res.status(200).json({ ...JSON.parse(cachedProfile), token });
+                    }
+                } catch (cacheErr) {
+                    console.error("Redis read error:", cacheErr);
+                }
+
+                // 🐢 3. CACHE MISS: Query MongoDB and Populate
+                console.log("🐢 CACHE MISS (Login): Querying MongoDB and Populating...");
+                const populatedUser = await User.findById(baseUser._id)
+                    .populate('connections', '_id name avatar handle')
+                    .populate('sentRequests', '_id name handle');
+
+                const profileData = {
+                    _id: populatedUser._id,
+                    name: populatedUser.name,
+                    email: populatedUser.email,
+                    handle: populatedUser.handle,
+                    role: populatedUser.role,
+                    avatar: populatedUser.avatar,
+                    vTokens: populatedUser.vTokens,
+                    connections: populatedUser.connections || [],
+                    sentRequests: populatedUser.sentRequests || []
+                };
+
+                // 💾 4. Save to Redis for next time! (Expires in 1 hour)
+                try {
+                    await redisClient.setEx(cacheKey, 3600, JSON.stringify(profileData));
+                } catch (cacheErr) {
+                    console.error("Redis write error:", cacheErr);
+                }
+
+                return res.status(200).json({ ...profileData, token });
             }
         }
 

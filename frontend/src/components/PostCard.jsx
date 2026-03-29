@@ -1,20 +1,18 @@
 import { useState } from 'react';
 import { 
   MessageCircle, Heart, Share, MoreHorizontal, Sparkles, Send, 
-  CheckCircle2, Clock, UserPlus, Loader2, Trash2 // 📝 1. Added Trash2 import
+  CheckCircle2, Clock, UserPlus, Loader2, Trash2, Pencil, X // 👈 Added Pencil and X
 } from 'lucide-react'; 
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
 
-// 🛠️ API HELPER INLINED
 const API = axios.create({
   baseURL: 'http://localhost:5000/api', 
   withCredentials: true
 });
 
-// 🛠️ COMPACT CONNECT BUTTON INLINED
 function CompactConnectButton({ targetUserId, isConnected, initialIsPending }) {
-  // ... (Your existing CompactConnectButton code remains exactly the same) ...
+  // ... (Your existing CompactConnectButton code remains exactly the same)
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState('');
   const [optimisticPending, setOptimisticPending] = useState(false);
@@ -43,60 +41,28 @@ function CompactConnectButton({ targetUserId, isConnected, initialIsPending }) {
       console.error("API Error:", err.response?.data || err.message);
       const errorMsg = err.response?.data?.message?.toLowerCase() || '';
       
-      if (err.response?.status === 404) {
-        setErrorText('Route not found (404)');
-      } else if (err.response?.status === 400) {
-        if (errorMsg.includes('connected') || errorMsg.includes('friend') || errorMsg.includes('accepted')) {
-          setOptimisticConnected(true);
-        } else {
-          setOptimisticPending(true); 
-        }
-      } else {
-        setErrorText('Connection failed!');
-      }
+      if (err.response?.status === 404) setErrorText('Route not found (404)');
+      else if (err.response?.status === 400 && (errorMsg.includes('connected') || errorMsg.includes('friend') || errorMsg.includes('accepted'))) setOptimisticConnected(true);
+      else setOptimisticPending(true); 
     } finally {
       setLoading(false);
     }
   };
 
-  if (finalConnected) {
-    return (
-      <div className="flex items-center gap-1 px-3 py-1 bg-green-500/10 text-green-500 text-[11px] font-bold rounded-full border border-green-500/20 cursor-default shadow-sm">
-        <CheckCircle2 size={12} /> Connected
-      </div>
-    );
-  }
-
-  if (finalPending) {
-    return (
-      <div className="flex items-center gap-1 px-3 py-1 bg-gray-500/10 text-gray-500 text-[11px] font-bold rounded-full border border-gray-500/20 cursor-default shadow-sm">
-        <Clock size={12} /> Requested
-      </div>
-    );
-  }
+  if (finalConnected) return <div className="flex items-center gap-1 px-3 py-1 bg-green-500/10 text-green-500 text-[11px] font-bold rounded-full border border-green-500/20 cursor-default shadow-sm"><CheckCircle2 size={12} /> Connected</div>;
+  if (finalPending) return <div className="flex items-center gap-1 px-3 py-1 bg-gray-500/10 text-gray-500 text-[11px] font-bold rounded-full border border-gray-500/20 cursor-default shadow-sm"><Clock size={12} /> Requested</div>;
 
   return (
     <div className="flex flex-col items-center relative">
-      <button
-        onClick={handleConnect}
-        disabled={loading}
-        className="flex items-center justify-center gap-1.5 px-4 py-1.5 bg-white text-black rounded-full text-[12px] font-black hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-md relative z-10"
-      >
+      <button onClick={handleConnect} disabled={loading} className="flex items-center justify-center gap-1.5 px-4 py-1.5 bg-white text-black rounded-full text-[12px] font-black hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-md relative z-10">
         {loading ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
         {loading ? "Wait..." : "Connect"}
       </button>
-      
-      {errorText && (
-        <span className="absolute top-[110%] text-red-500 bg-red-100 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap z-20 shadow-sm">
-          {errorText}
-        </span>
-      )}
+      {errorText && <span className="absolute top-[110%] text-red-500 bg-red-100 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap z-20 shadow-sm">{errorText}</span>}
     </div>
   );
 }
 
-// 📄 POST CARD MAIN COMPONENT
-// 📝 2. Added onDelete prop here
 export default function PostCard({ post, currentUser, onDelete }) {
   const navigate = useNavigate(); 
 
@@ -107,9 +73,14 @@ export default function PostCard({ post, currentUser, onDelete }) {
   const [commentText, setCommentText] = useState('');
   const [isCommenting, setIsCommenting] = useState(false);
   
-  // 📝 3. Added State for Deletion and Menu Toggle
   const [isDeleting, setIsDeleting] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // 🛠️ SDE 2 FIX: New States for Editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentText, setCurrentText] = useState(post.text || post.content);
+  const [editText, setEditText] = useState(post.text || post.content);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   
   const myId = String(currentUser?._id || '');
   const postUserId = typeof post.user === 'object' ? String(post.user?._id) : String(post.user);
@@ -139,12 +110,8 @@ export default function PostCard({ post, currentUser, onDelete }) {
   const handleProfileClick = (e) => {
     e.stopPropagation(); 
     if (!postUserId) return;
-
-    if (isMyPost) {
-      navigate('/profile'); 
-    } else {
-      navigate(`/user/${postUserId}`); 
-    }
+    if (isMyPost) navigate('/profile'); 
+    else navigate(`/user/${postUserId}`); 
   };
 
   const handleLike = async (e) => {
@@ -176,57 +143,52 @@ export default function PostCard({ post, currentUser, onDelete }) {
     }
   };
 
-  // 📝 4. Added handleDelete function
   const handleDelete = async (e) => {
     e.stopPropagation(); 
     if (!window.confirm("Are you sure you want to delete this post?")) {
-      setIsMenuOpen(false); // Close menu if they cancel
+      setIsMenuOpen(false);
       return;
     }
-
     setIsDeleting(true);
     try {
       await API.delete(`/posts/${post._id}`);
-      if (onDelete) {
-        onDelete(post._id); 
-      }
+      if (onDelete) onDelete(post._id); 
     } catch (err) {
       console.error("Delete error:", err);
       alert(err.response?.data?.message || "Failed to delete post.");
       setIsDeleting(false);
     }
   };
+
+  // 🛠️ SDE 2 FIX: Save Edit Function
+  const handleSaveEdit = async (e) => {
+    e.stopPropagation();
+    if (!editText.trim()) return;
+    setIsSavingEdit(true);
+    try {
+      await API.put(`/posts/${post._id}`, { text: editText });
+      setCurrentText(editText); // Update the UI instantly
+      setIsEditing(false);      // Close the text box
+    } catch (err) {
+      console.error("Edit error:", err);
+      alert("Failed to edit post.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
     
-    const handleShare = async (e) => {
-      e.stopPropagation() ;
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    const postUrl = `${window.location.origin}/post/${post._id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: `post by ${post.user?.name}`, text: 'check out my new post on campus connect!', url: postUrl }); } 
+      catch(error) { console.log('share error :', error); }
+    } else {
+      try { await navigator.clipboard.writeText(postUrl); alert("link copied!"); } 
+      catch (err) { console.error('failed to copy', err); }
+    }
+  };
 
-     
-      const postUrl = `${window.location.origin}/post/${post._id}` ;
-
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title:`post by ${post.user?.name}` ,
-            text : 'check out my new post on campus connect!' ,
-            url : postUrl ,
-          });
-        }catch(error) {
-          console.log('user cancelled share or error :' , error) ;
-        }
-
-      } else {
-
-        try {
-          await navigator.clipboard.writeText(postUrl) ;
-          alert("link copied to clipboard!");
-
-        }catch (err) {
-          console.error('failed to copy post' , err) ;
-        }
-      }
-    };
-
-  // 📝 SDE Note: Added onClick listener to close menu if user clicks anywhere else on the card
   return (
     <div 
       onClick={() => setIsMenuOpen(false)} 
@@ -234,10 +196,7 @@ export default function PostCard({ post, currentUser, onDelete }) {
     >
       <div className="flex gap-3 md:gap-4 w-full">
         
-        <div 
-          className="w-12 h-12 flex-shrink-0 mt-1 cursor-pointer transition-transform active:scale-95"
-          onClick={handleProfileClick}
-        >
+        <div className="w-12 h-12 flex-shrink-0 mt-1 cursor-pointer transition-transform active:scale-95" onClick={handleProfileClick}>
           <div className="w-full h-full rounded-full bg-gradient-to-br from-[#1d9bf0] to-purple-500 p-[2px]">
             <img 
               src={post.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user?.name || 'U'}`} 
@@ -250,37 +209,23 @@ export default function PostCard({ post, currentUser, onDelete }) {
         <div className="flex-1 overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center text-[15px] flex-wrap gap-1.5">
-              
-              <span 
-                onClick={handleProfileClick}
-                className="font-black text-gray-900 dark:text-white hover:text-[#1d9bf0] dark:hover:text-[#1d9bf0] transition-colors cursor-pointer truncate flex items-center gap-1 hover:underline"
-              >
+              <span onClick={handleProfileClick} className="font-black text-gray-900 dark:text-white hover:text-[#1d9bf0] dark:hover:text-[#1d9bf0] transition-colors cursor-pointer truncate flex items-center gap-1 hover:underline">
                 {post.user?.name || 'User'}
                 {post.likes?.length > 100 && <Sparkles size={14} className="text-yellow-500" />}
               </span>
-              
-              <span 
-                onClick={handleProfileClick}
-                className="text-gray-500 dark:text-gray-500 font-medium truncate text-[14px] cursor-pointer hover:underline"
-              >
+              <span onClick={handleProfileClick} className="text-gray-500 dark:text-gray-500 font-medium truncate text-[14px] cursor-pointer hover:underline">
                 @{post.user?.handle || 'handle'}
               </span>
-              
               <span className="text-gray-400 dark:text-gray-600">·</span>
               <span className="text-gray-500 dark:text-gray-500 text-[14px] font-medium">{formatTime(post.createdAt)}</span>
               
               {!isMyPost && postUserId && (
                 <div className="ml-2 flex items-center scale-90 origin-left">
-                  <CompactConnectButton 
-                    targetUserId={postUserId}
-                    isConnected={isConnected}
-                    initialIsPending={isRequested}
-                  />
+                  <CompactConnectButton targetUserId={postUserId} isConnected={isConnected} initialIsPending={isRequested} />
                 </div>
               )}
             </div>
             
-            {/* 📝 5. Replaced the single MoreHorizontal icon with the new Dropdown Menu */}
             <div className="relative">
               <div 
                 onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
@@ -289,18 +234,24 @@ export default function PostCard({ post, currentUser, onDelete }) {
                 <MoreHorizontal size={18} />
               </div>
 
-              {/* Dropdown UI */}
               {isMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#16181c] border border-gray-100 dark:border-gray-800 rounded-xl shadow-lg overflow-hidden z-20 animate-in fade-in slide-in-from-top-2">
                   {isMyPost ? (
-                    <button 
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-[14px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-white/5 transition-colors text-left disabled:opacity-50"
-                    >
-                      {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                      Delete
-                    </button>
+                    <>
+                      {/* 🛠️ SDE 2 FIX: Added Edit Button to Dropdown */}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setIsEditing(true); setIsMenuOpen(false); }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-[14px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left"
+                      >
+                        <Pencil size={16} /> Edit
+                      </button>
+                      <button 
+                        onClick={handleDelete} disabled={isDeleting}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-[14px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+                      >
+                        {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} Delete
+                      </button>
+                    </>
                   ) : (
                     <button className="w-full flex items-center gap-2 px-4 py-3 text-[14px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left">
                       Report Post
@@ -309,24 +260,54 @@ export default function PostCard({ post, currentUser, onDelete }) {
                 </div>
               )}
             </div>
-
           </div>
           
-          <p className="mt-2 text-lg md:text-[17px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words font-medium">
-            {post.text || post.content}
-          </p>
+          {/* 🛠️ SDE 2 FIX: Toggle between Text Box and Normal Text */}
+          {isEditing ? (
+            <div className="mt-3 animate-in fade-in slide-in-from-top-2" onClick={(e) => e.stopPropagation()}>
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-black/40 border border-[#1d9bf0]/50 dark:border-[#1d9bf0]/50 p-3 rounded-xl outline-none text-gray-900 dark:text-white text-[16px] resize-none min-h-[80px]"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <button 
+                  onClick={() => { setIsEditing(false); setEditText(currentText); }} 
+                  className="px-4 py-1.5 rounded-full text-[13px] font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit || !editText.trim()}
+                  className="bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white px-4 py-1.5 rounded-full text-[13px] font-bold transition flex items-center gap-1 disabled:opacity-50"
+                >
+                  {isSavingEdit ? <Loader2 size={14} className="animate-spin" /> : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-lg md:text-[17px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words font-medium">
+              {currentText}
+            </p>
+          )}
           
-          {post.image && (
+          {post.image && post.image.url && (
             <div className="mt-4 rounded-[1.5rem] border border-gray-200 dark:border-white/10 overflow-hidden shadow-sm">
-              <img src={post.image} className="w-full h-auto object-cover max-h-[512px] hover:scale-[1.02] transition-transform duration-500" alt="Post media" />
+              <img src={post.image.url} className="w-full h-auto object-cover max-h-[512px] hover:scale-[1.02] transition-transform duration-500 bg-gray-100 dark:bg-gray-900" alt="Post media" loading="lazy" />
+            </div>
+          )}
+
+          {post.video && (
+            <div className="mt-4 rounded-[1.5rem] border border-gray-200 dark:border-white/10 overflow-hidden shadow-sm bg-black relative group">
+              <video src={post.video} controls controlsList="nodownload" className="w-full h-auto max-h-[512px] object-contain" />
             </div>
           )}
 
           <div className="flex justify-between mt-4 text-gray-500 dark:text-gray-500 max-w-[425px]">
-            <div 
-              onClick={(e) => { e.stopPropagation(); setShowCommentBox(!showCommentBox); }}
-              className="flex items-center group transition cursor-pointer"
-            >
+            {/* Action buttons (Comments, Likes, Share) remain exactly the same */}
+            <div onClick={(e) => { e.stopPropagation(); setShowCommentBox(!showCommentBox); }} className="flex items-center group transition cursor-pointer">
               <div className="p-2.5 group-hover:bg-blue-50 dark:group-hover:bg-[#1d9bf0]/10 group-hover:text-[#1d9bf0] rounded-full transition-colors">
                 <MessageCircle size={20} />
               </div>
@@ -340,36 +321,24 @@ export default function PostCard({ post, currentUser, onDelete }) {
               <span className={`text-[14px] font-bold px-1 transition-colors ${isLikedByMe ? '' : 'group-hover:text-[#f91880]'}`}>{likes.length}</span>
             </button>
           
-          <div
-            onClick = {handleShare}
-            
-            
-            className="flex items-center group transition cursor-pointer">
-             
-              <div className="p-2.5 group-hover:bg-green-50 dark:group-hover:bg-[#00ba7c]/10 group-hover:text-[#00ba7c] rounded-full transition-colors"><Share size={20} />
-              
+            <div onClick={handleShare} className="flex items-center group transition cursor-pointer">
+              <div className="p-2.5 group-hover:bg-green-50 dark:group-hover:bg-[#00ba7c]/10 group-hover:text-[#00ba7c] rounded-full transition-colors">
+                <Share size={20} />
               </div>
-                
             </div>
           </div>
         </div>
       </div>
 
+      {/* Comments section remains the same */}
       {showCommentBox && (
         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5 ml-0 md:ml-[60px] animate-in slide-in-from-top-2 duration-300">
           <form onSubmit={handleCommentSubmit} className="flex gap-3 items-center mb-6">
             <input
-              type="text"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="What's your take? ✨"
+              type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="What's your take? ✨"
               className="flex-1 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 p-3 rounded-2xl focus:border-[#1d9bf0] dark:focus:border-[#1d9bf0] focus:bg-white dark:focus:bg-white/5 outline-none text-gray-900 dark:text-white text-[15px] transition-all font-medium shadow-inner dark:shadow-none"
             />
-            <button
-              type="submit"
-              disabled={isCommenting || !commentText.trim()}
-              className="bg-gradient-to-r from-[#1d9bf0] to-blue-600 hover:opacity-90 text-white font-bold px-5 py-3 rounded-2xl text-[14px] disabled:opacity-50 transition-all active:scale-95 shadow-md flex items-center gap-2"
-            >
+            <button type="submit" disabled={isCommenting || !commentText.trim()} className="bg-gradient-to-r from-[#1d9bf0] to-blue-600 hover:opacity-90 text-white font-bold px-5 py-3 rounded-2xl text-[14px] disabled:opacity-50 transition-all active:scale-95 shadow-md flex items-center gap-2">
               Reply <Send size={14} />
             </button>
           </form>
@@ -377,29 +346,12 @@ export default function PostCard({ post, currentUser, onDelete }) {
           <div className="space-y-4 mb-2">
             {comments.map((c, index) => (
               <div key={index} className="flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2">
-                <div 
-                  className="w-10 h-10 flex-shrink-0 mt-0.5 cursor-pointer active:scale-95 transition-transform"
-                  onClick={() => {
-                    if (c.user?._id === currentUser?._id) navigate('/profile');
-                    else navigate(`/user/${c.user?._id}`);
-                  }}
-                >
-                  <img 
-                    src={c.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.user?.name || 'U'}`} 
-                    className="w-full h-full rounded-full object-cover border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900"
-                    alt={c.user?.name}
-                  />
+                <div className="w-10 h-10 flex-shrink-0 mt-0.5 cursor-pointer active:scale-95 transition-transform" onClick={() => navigate(c.user?._id === currentUser?._id ? '/profile' : `/user/${c.user?._id}`)}>
+                  <img src={c.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.user?.name || 'U'}`} className="w-full h-full rounded-full object-cover border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900" alt={c.user?.name}/>
                 </div>
-                
                 <div className="flex-1 bg-gray-50 dark:bg-white/[0.03] p-4 rounded-2xl rounded-tl-sm border border-gray-100 dark:border-white/[0.05]">
                   <div className="flex items-center gap-2 text-[14px]">
-                    <span 
-                      onClick={() => {
-                        if (c.user?._id === currentUser?._id) navigate('/profile');
-                        else navigate(`/user/${c.user?._id}`);
-                      }}
-                      className="font-bold text-gray-900 dark:text-white hover:underline cursor-pointer hover:text-[#1d9bf0] dark:hover:text-[#1d9bf0] transition-colors"
-                    >
+                    <span onClick={() => navigate(c.user?._id === currentUser?._id ? '/profile' : `/user/${c.user?._id}`)} className="font-bold text-gray-900 dark:text-white hover:underline cursor-pointer hover:text-[#1d9bf0] dark:hover:text-[#1d9bf0] transition-colors">
                       {c.user?.name || 'User'}
                     </span>
                     <span className="text-gray-500 dark:text-gray-500 font-medium text-xs">@{c.user?.handle}</span>

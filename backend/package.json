@@ -12,7 +12,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "@imagekit/javascript": "^5.2.1",
+    "@pinecone-database/pinecone": "^7.1.0",
     "@react-oauth/google": "^0.13.4",
     "aws4": "^1.13.2",
     "bcryptjs": "^3.0.3",
@@ -28,6 +30,7 @@
     "mongoose": "^7.8.9",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^2.2.1",
+    "openai": "^6.33.0",
     "redis": "^5.11.0",
     "ws": "^8.19.0"
   },

@@ -1,3 +1,5 @@
+// 🛠️ SDE 2 FIX: Removed the random 'typescript' import. 
+// VS Code often auto-adds this by mistake when you hit 'Tab' too fast!
 const imagekit = require("../config/imagekit");
 const Post = require("../models/Post");
 
@@ -15,10 +17,11 @@ const createPost = async (req, res) => {
       });
     }
 
-    let imageUrl = null;
-    let videoUrl = null;
+    // 🛠️ SDE 2 FIX: Set up our safe variables outside the if-block
+    let imageObj = null; 
+    let finalVideoUrl = null;
 
-    // Handle ImageKit Upload
+    // Handle ImageKit Upload 
     if (req.file) {
       console.log("Uploading file to imagekit...");
       
@@ -30,10 +33,14 @@ const createPost = async (req, res) => {
 
       console.log("ImageKit upload response:", response);
 
+      // 🛠️ SDE 2 FIX: Safely route the data based on fileType
       if (response.fileType === "image") {
-        imageUrl = response.url;
+        imageObj = {
+          url: response.url,
+          fileId: response.fileId
+        };
       } else {
-        videoUrl = response.url;
+        finalVideoUrl = response.url;
       }
     }
 
@@ -41,11 +48,12 @@ const createPost = async (req, res) => {
     let newPost = await Post.create({
       user: req.user._id,
       text: text || "",
-      image: imageUrl,
-      video: videoUrl,
+      // 🛠️ SDE 2 FIX: Pass in our safe variables so it doesn't crash on text-only posts
+      image: imageObj,
+      video: finalVideoUrl,
     });
 
-    // 👉 THE FIX: Populate the user details before sending it back to the frontend
+    // Populate the user details before sending it back to the frontend
     await newPost.populate("user", "name handle avatar role dept");
 
     // Send Success Response
@@ -63,15 +71,11 @@ const createPost = async (req, res) => {
 // ==========================================
 // GET ALL POSTS (TIMELINE)
 // ==========================================
-// ==========================================
-// GET ALL POSTS (TIMELINE)
-// ==========================================
 const getAllPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
+    const posts = await Post.find({deletedAt : null})
       .sort({ createdAt: -1 })
       .populate("user", "name handle avatar role dept")
-      // 👉 THE FIX: Comments ke andar ke user ki details bhi database se nikal kar laao
       .populate("comments.user", "name handle avatar role dept");
 
     res.status(200).json(posts);
@@ -92,14 +96,12 @@ const likePost = async (req, res) => {
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    // Agar pehle se liked hai toh hata do (Unlike)
     if (post.likes.includes(userId)) {
       post.likes = post.likes.filter((id) => id.toString() !== userId.toString());
       await post.save();
       return res.status(200).json({ message: 'Unliked', likes: post.likes });
     }
 
-    // Nahi toh add karo (Like)
     post.likes.push(userId);
     await post.save();
     res.status(200).json({ message: 'Liked', likes: post.likes });
@@ -130,7 +132,6 @@ const commentPost = async (req, res) => {
     post.comments.push(comment);
     await post.save();
 
-    // 👉 THE FIX: Frontend ko bhejane se pehle comment ke andar ke user ka data bhar do
     await post.populate('comments.user', 'name handle avatar role dept');
 
     res.status(200).json({ message: 'Comment added successfully', comments: post.comments });
@@ -140,4 +141,61 @@ const commentPost = async (req, res) => {
   }       
 };
 
-module.exports = { createPost, getAllPosts, likePost, commentPost };
+const editPost = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user._id;
+    const { text } = req.body;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    if (post.user.toString() !== userId.toString()) {
+      return res.status(403).json({ message: 'Not authorized to edit this post' });
+    }
+
+    post.text = text;
+    await post.save();
+
+    res.status(200).json({ message: 'Post updated successfully', post });
+  } catch (error) {
+    console.error("Error editing post:", error.message);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// ==========================================
+// DELETE POST
+// ==========================================
+const deletePost = async (req, res) => {
+  try {
+    const postId = req.params.id ;
+    const userId = req.user._id ;
+
+    const post = await Post.findById(postId) ;
+
+    if (!post) {
+      return res.status(404).json({message : 'post not found'})
+    }
+    
+    if (post.user.toString() !== userId.toString()) {
+      return res.status(403).json({message : 'not authorised to delete this post'});
+    }
+
+    // 🛠️ SDE 2 FIX: You are filtering by {deletedAt: null} in getAllPosts, 
+    // so we must do a SOFT DELETE here instead of post.deleteOne()!
+    post.deletedAt = new Date();
+    await post.save();
+
+    res.status(200).json({
+      message : 'post deleted successfully' ,
+      deletedPostId  : postId
+    });
+  } catch (error) {
+    console.error("error deleting post : " , error.message);
+    res.status(500).json({message: "server error"});
+  }
+};
+
+module.exports = { createPost, getAllPosts, likePost, commentPost, deletePost , editPost };
