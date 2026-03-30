@@ -190,13 +190,7 @@ export default function Profile() {
             )}
           </div>
           
-          <div className="flex gap-3 mb-2">
-             {!isEditing && isOwnProfile && (
-               <button onClick={() => setIsEditing(true)} className="px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-black font-black rounded-2xl hover:bg-gray-800 dark:hover:bg-gray-200 transition active:scale-95 shadow-xl cursor-pointer">
-                 Edit Identity
-               </button>
-             )}
-          </div>
+          
         </div>
 
         {isEditing && isOwnProfile ? (
